@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { connectDB } from "@/lib/db";
+import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 
 export async function POST(req: Request) {
@@ -14,6 +14,13 @@ export async function POST(req: Request) {
 
   const existing = await User.findOne({ email });
   if (existing) {
+    // Account linking: Google user adding a password to enable credentials login
+    if (!existing.password) {
+      const hashed = await bcrypt.hash(password, 10);
+      existing.password = hashed;
+      await existing.save();
+      return NextResponse.json({ message: "Password added to existing account" }, { status: 200 });
+    }
     return NextResponse.json({ error: "Email already registered" }, { status: 409 });
   }
 

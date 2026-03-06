@@ -1,18 +1,18 @@
+// models/Reservation.ts //
 import mongoose, { Schema, models } from "mongoose";
 
 const ReservationSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    facilityId: { type: String, required: true },
-    facilityName: { type: String, required: true },
+    sport: { type: String, required: true },
+    hostName: { type: String, required: true },
     date: { type: String, required: true },
-    time: { type: String, required: true },
-    duration: { type: String, required: true },
-    note: { type: String, default: "" },
+    timeSlot: { type: String, required: true },
+    participants: { type: [String], default: [] },
+    minParticipants: { type: Number, default: 2 },
     status: {
       type: String,
-      enum: ["Upcoming", "Completed", "Cancelled"],
-      default: "Upcoming",
+      enum: ["active", "confirmed", "cancelled"], // ✅ added "confirmed"
+      default: "active",
     },
   },
   { timestamps: true }

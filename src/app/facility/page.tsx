@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 
 type FacilityType = "sports" | "coworking" | "info" | "membership";
@@ -113,9 +114,7 @@ function InfoModal({ facility, onClose }: { facility: Facility; onClose: () => v
             </svg>
           </button>
         </div>
-
         <p className="text-sm text-neutral-600 leading-relaxed mb-5">{facility.desc}</p>
-
         <div className="bg-neutral-50 rounded-2xl p-4 space-y-3 mb-5">
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold text-neutral-700">🕐 Hours</span>
@@ -132,15 +131,12 @@ function InfoModal({ facility, onClose }: { facility: Facility; onClose: () => v
             </div>
           )}
         </div>
-
         <div className="bg-blue-50 rounded-xl px-4 py-3 mb-5">
           <p className="text-xs font-medium text-[#3b6ef6]">
             No reservation required — just show up during opening hours. Student members enjoy reduced rates automatically.
           </p>
         </div>
-
-        <button onClick={onClose}
-          className="w-full py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] rounded-xl transition-colors">
+        <button onClick={onClose} className="w-full py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] rounded-xl transition-colors">
           Got it
         </button>
       </div>
@@ -164,9 +160,7 @@ function MembershipModal({ facility, onClose }: { facility: Facility; onClose: (
             </svg>
           </button>
         </div>
-
         <p className="text-sm text-neutral-600 leading-relaxed mb-5">{facility.desc}</p>
-
         <div className="bg-neutral-50 rounded-2xl p-4 space-y-3 mb-5">
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold text-neutral-700">💰 Regular Price</span>
@@ -179,7 +173,6 @@ function MembershipModal({ facility, onClose }: { facility: Facility; onClose: (
             </div>
           )}
         </div>
-
         <div className="bg-purple-50 rounded-xl px-4 py-3 mb-5">
           <p className="text-xs font-semibold text-purple-700 mb-1">Student Member Privileges</p>
           <ul className="text-xs text-purple-600 space-y-1">
@@ -189,9 +182,7 @@ function MembershipModal({ facility, onClose }: { facility: Facility; onClose: (
             <li>✓ Free access to co-working tables</li>
           </ul>
         </div>
-
-        <button onClick={onClose}
-          className="w-full py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] rounded-xl transition-colors">
+        <button onClick={onClose} className="w-full py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] rounded-xl transition-colors">
           Close
         </button>
       </div>
@@ -201,18 +192,24 @@ function MembershipModal({ facility, onClose }: { facility: Facility; onClose: (
 
 // ── Booking Modal (Sports & Co-working) ──────────────────
 function BookingModal({ facility, onClose }: { facility: Facility; onClose: () => void }) {
+  const { data: session } = useSession();
   const [date, setDate]         = useState("");
   const [time, setTime]         = useState("");
   const [dur, setDur]           = useState("1");
   const [note, setNote]         = useState("");
-  const [participants, setParticipants] = useState(facility.minPlayers ?? 1);
-  const [inviteEmail, setInviteEmail]   = useState("");
-  const [invitees, setInvitees]         = useState<string[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitees, setInvitees]       = useState<string[]>([]);
   const [done, setDone]         = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]       = useState("");
 
   const isSports = facility.type === "sports";
   const minP = facility.minPlayers ?? 1;
-  const canBook = isSports ? participants >= minP : true;
+
+  // ✅ FIX: host counts as 1, so need (minP - 1) invitees minimum
+  const requiredInvitees = minP - 1;
+  const enoughInvitees = !isSports || invitees.length >= requiredInvitees;
+  const canBook = enoughInvitees;
 
   const addInvite = () => {
     const email = inviteEmail.trim();
@@ -226,16 +223,66 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
     setInvitees((prev) => prev.filter((e) => e !== email));
   };
 
+  const handleConfirmBooking = async () => {
+    if (!date || !time || !canBook) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sport: facility.name,
+          hostName: session?.user?.name || session?.user?.email || "Unknown",
+          date,
+          timeSlot: time,
+          minParticipants: minP,
+          participants: [],
+          status: "active",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.message || "Failed to create reservation.");
+        setSubmitting(false);
+        return;
+      }
+
+      const reservation = await res.json();
+
+      // Send invitations to all invitees
+      for (const email of invitees) {
+        await fetch("/api/invitation/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            reservationId: reservation._id,
+          }),
+        });
+      }
+
+      setDone(true);
+    } catch (e) {
+      console.error("Booking failed:", e);
+      setError("Something went wrong. Please try again.");
+    }
+    setSubmitting(false);
+  };
+
   if (done) return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
       <div className="bg-white rounded-3xl p-10 max-w-sm w-full text-center shadow-2xl">
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#3b6ef6] to-[#6b9eff] flex items-center justify-center mx-auto mb-5 text-white text-2xl font-bold shadow-lg">✓</div>
-        <h3 className="text-xl font-extrabold text-neutral-900 mb-2">Booking Confirmed!</h3>
+        <h3 className="text-xl font-extrabold text-neutral-900 mb-2">Booking Submitted!</h3>
         <p className="text-sm text-neutral-500 mb-2">
-          Your reservation for <span className="font-semibold text-neutral-800">{facility.name}</span> has been submitted.
+          Your reservation for <span className="font-semibold text-neutral-800">{facility.name}</span> is pending confirmation.
         </p>
         {isSports && invitees.length > 0 && (
-          <p className="text-xs text-neutral-400 mb-4">Invitations sent to {invitees.length} friend{invitees.length > 1 ? "s" : ""}.</p>
+          <p className="text-xs text-neutral-400 mb-2">
+            Invitations sent to {invitees.length} friend{invitees.length > 1 ? "s" : ""}. Your booking will be <strong>auto-confirmed</strong> once more than half accept.
+          </p>
         )}
         <Link href="/my-reservation"
           className="block w-full py-3 bg-[#3b6ef6] text-white text-sm font-bold rounded-xl hover:bg-[#2a5ce0] transition-colors mb-3">
@@ -269,7 +316,8 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
         {isSports && (
           <div className="bg-blue-50 rounded-xl px-4 py-3 mb-5">
             <p className="text-xs font-semibold text-[#3b6ef6]">
-              Minimum <span className="font-extrabold">{minP} participants</span> required. You are the host — invite friends by email below.
+              Minimum <span className="font-extrabold">{minP} participants</span> required (including you).
+              You must invite at least <span className="font-extrabold">{requiredInvitees} friend{requiredInvitees !== 1 ? "s" : ""}</span> to confirm booking.
             </p>
           </div>
         )}
@@ -298,48 +346,48 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
             </select>
           </div>
 
-          {/* Participants (sports only) */}
-          {isSports && (
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                Number of Participants
-                <span className="ml-1 text-neutral-400 font-normal">(min {minP})</span>
-              </label>
-              <input
-                type="number"
-                min={minP}
-                value={participants}
-                onChange={e => setParticipants(Number(e.target.value))}
-                className={`w-full px-3.5 py-3 bg-neutral-100 border rounded-xl text-sm text-neutral-900 outline-none transition-all
-                  ${participants < minP ? "border-red-400 bg-red-50" : "border-transparent focus:border-[#3b6ef6] focus:bg-white"}`}
-              />
-              {participants < minP && (
-                <p className="text-xs text-red-500 mt-1">At least {minP} participants required</p>
-              )}
-            </div>
-          )}
-
           {/* Invite Friends (sports only) */}
           {isSports && (
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Invite Friends (by email)</label>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                Invite Friends (by email)
+                <span className="ml-1 text-neutral-400 font-normal">
+                  — {invitees.length}/{requiredInvitees} required
+                </span>
+              </label>
               <div className="flex gap-2">
                 <input
                   type="email"
-                  placeholder="friend@kmitl.ac.th"
+                  placeholder="friend@example.com"
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addInvite())}
                   className="flex-1 px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm outline-none focus:border-[#3b6ef6] focus:bg-white transition-all"
                 />
-                <button
-                  type="button"
-                  onClick={addInvite}
-                  className="px-4 py-3 bg-[#3b6ef6] text-white text-xs font-bold rounded-xl hover:bg-[#2a5ce0] transition-colors"
-                >
+                <button type="button" onClick={addInvite}
+                  className="px-4 py-3 bg-[#3b6ef6] text-white text-xs font-bold rounded-xl hover:bg-[#2a5ce0] transition-colors">
                   Add
                 </button>
               </div>
+
+              {/* ✅ Progress bar showing invite count vs required */}
+              <div className="mt-2">
+                <div className="w-full bg-neutral-100 rounded-full h-1.5">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${invitees.length >= requiredInvitees ? "bg-green-500" : "bg-[#3b6ef6]"}`}
+                    style={{ width: `${Math.min(100, (invitees.length / requiredInvitees) * 100)}%` }}
+                  />
+                </div>
+                {!enoughInvitees && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Add {requiredInvitees - invitees.length} more friend{requiredInvitees - invitees.length !== 1 ? "s" : ""} to unlock booking
+                  </p>
+                )}
+                {enoughInvitees && invitees.length > 0 && (
+                  <p className="text-xs text-green-600 mt-1 font-semibold">✓ Minimum invitees reached</p>
+                )}
+              </div>
+
               {invitees.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {invitees.map(email => (
@@ -361,16 +409,20 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
           </div>
         </div>
 
+        {error && (
+          <p className="mt-3 text-xs text-red-500 text-center">{error}</p>
+        )}
+
         <div className="flex gap-3 mt-6">
           <button onClick={onClose}
             className="flex-1 py-3 text-sm font-semibold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-xl transition-colors">
             Cancel
           </button>
           <button
-            disabled={!date || !time || !canBook}
-            onClick={() => setDone(true)}
+            disabled={!date || !time || !canBook || submitting}
+            onClick={handleConfirmBooking}
             className="flex-1 py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors shadow-md shadow-blue-200">
-            Confirm Booking
+            {submitting ? "Booking..." : !enoughInvitees ? `Need ${requiredInvitees - invitees.length} more invite${requiredInvitees - invitees.length !== 1 ? "s" : ""}` : "Confirm Booking"}
           </button>
         </div>
       </div>
@@ -408,7 +460,6 @@ export default function FacilityPage() {
             <h1 className="text-2xl font-extrabold text-neutral-900 tracking-tight mb-1">Browse Facilities</h1>
             <p className="text-sm text-neutral-500">Find and book KMITL facilities instantly</p>
 
-            {/* Search */}
             <div className="mt-5 relative max-w-md">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-base pointer-events-none">🔍</span>
               <input
@@ -419,7 +470,6 @@ export default function FacilityPage() {
               />
             </div>
 
-            {/* Category tabs */}
             <div className="mt-4 flex gap-2 flex-wrap">
               {CATEGORIES.map(c => (
                 <button key={c} onClick={() => setActiveCategory(c)}
@@ -434,7 +484,6 @@ export default function FacilityPage() {
           </div>
         </div>
 
-        {/* Facility grid */}
         <div className="max-w-5xl mx-auto px-6 py-8">
           {filtered.length === 0 ? (
             <div className="text-center py-20 text-neutral-400">
@@ -462,19 +511,16 @@ export default function FacilityPage() {
                   <p className="text-xs text-neutral-400 mb-1">📍 {f.location}</p>
                   <p className="text-xs text-neutral-400 mb-2">🕐 {f.open}</p>
 
-                  {/* Sports: min players badge */}
                   {f.minPlayers && (
                     <span className="text-xs font-semibold text-[#3b6ef6] bg-blue-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
                       Min {f.minPlayers} players
                     </span>
                   )}
-                  {/* Gym/Pool: fee badge */}
                   {f.fee && f.type === "info" && (
                     <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
                       {f.fee}
                     </span>
                   )}
-                  {/* Membership: price badge */}
                   {f.type === "membership" && (
                     <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
                       {f.fee}
