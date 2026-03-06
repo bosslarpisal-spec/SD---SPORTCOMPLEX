@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema(
     password: { type: String }, // hashed, null for Google OAuth users
     provider: { type: String, default: "credentials" }, // "credentials" | "google"
     image:    { type: String, default: "" }, // profile image URL
+    penaltyUntil: { type: Date, default: null }, // booking penalty expiry (null = no penalty)
   },
   { timestamps: true }
 );

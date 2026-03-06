@@ -4,7 +4,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/Navbar";
-import { Trophy, Users, Award, UtensilsCrossed, Dumbbell, ArrowRight, CheckCircle } from "lucide-react";
+import { Trophy, Users, Award, UtensilsCrossed, Dumbbell, ArrowRight, CheckCircle, Target, Globe, Feather, Disc } from "lucide-react";
 
 const CATEGORIES = [
   {
@@ -53,10 +53,10 @@ const STEPS = [
 ];
 
 const FEATURED = [
-  { name: "Football Field",   category: "Sports",    minPlayers: 6,    Icon: Trophy,          slots: "2 fields"  },
-  { name: "Volleyball Court", category: "Sports",    minPlayers: 6,    Icon: Trophy,          slots: "2 courts"  },
-  { name: "Badminton Court",  category: "Sports",    minPlayers: 4,    Icon: Dumbbell,        slots: "8 courts"  },
-  { name: "Table Tennis",     category: "Sports",    minPlayers: 2,    Icon: Dumbbell,        slots: "4 tables"  },
+  { name: "Football Field",   category: "Sports",    minPlayers: 6,    Icon: Target,          slots: "2 fields"  },
+  { name: "Volleyball Court", category: "Sports",    minPlayers: 6,    Icon: Globe,           slots: "2 courts"  },
+  { name: "Badminton Court",  category: "Sports",    minPlayers: 4,    Icon: Feather,         slots: "8 courts"  },
+  { name: "Table Tennis",     category: "Sports",    minPlayers: 2,    Icon: Disc,            slots: "4 tables"  },
   { name: "Private Room A",   category: "Co-working", minPlayers: null, Icon: Users,           slots: "2 rooms"   },
   { name: "Eng. Canteen",     category: "Canteen",   minPlayers: null, Icon: UtensilsCrossed, slots: "30 tables" },
 ];

@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Invitation from "@/models/Invitation";
 import Reservation from "@/models/Reservation";
-import User from "@/models/User";
 import { sendReservationCancelledEmail } from "@/lib/mail";
 
 export async function POST(req: Request) {
@@ -13,7 +12,7 @@ export async function POST(req: Request) {
     if (!reservationId) return NextResponse.json({ message: "Missing reservationId" }, { status: 400 });
 
     const reservation = await Reservation.findById(reservationId);
-    if (!reservation || reservation.status !== "active") {
+    if (!reservation || reservation.status !== "upcoming") {
       return NextResponse.json({ message: "Not applicable" });
     }
 
@@ -21,12 +20,13 @@ export async function POST(req: Request) {
     const now = new Date();
 
     // Check if ALL invitations have expired and none accepted
-    const allExpired = allInvites.every(i => new Date(i.expiresAt) < now);
-    const anyAccepted = allInvites.some(i => i.status === "accepted");
+    const allExpired = allInvites.every((i: any) => new Date(i.expiresAt) < now);
+    const anyAccepted = allInvites.some((i: any) => i.status === "accepted");
 
     if (allExpired && !anyAccepted) {
       // Cancel the reservation
       reservation.status = "cancelled";
+      reservation.cancelledAt = now;
       await reservation.save();
 
       // Mark all pending invites as expired
@@ -37,16 +37,17 @@ export async function POST(req: Request) {
 
       // Send cancellation email to host
       try {
-        const host = await User.findOne({ name: reservation.hostName });
-        if (host?.email) {
-          await sendReservationCancelledEmail(
-            host.email,
-            reservation.hostName,
-            reservation.sport,
-            reservation.date,
-            reservation.timeSlot
-          );
-        }
+        const timeSlot =
+          reservation.startTime && reservation.endTime
+            ? `${reservation.startTime} - ${reservation.endTime}`
+            : "TBD";
+        await sendReservationCancelledEmail(
+          reservation.userEmail,
+          reservation.userEmail,
+          reservation.facilityName || "Sports",
+          reservation.date || "TBD",
+          timeSlot
+        );
       } catch (emailErr) {
         console.error("Cancel email failed:", emailErr);
       }

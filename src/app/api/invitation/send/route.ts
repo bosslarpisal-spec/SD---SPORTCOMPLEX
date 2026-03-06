@@ -1,3 +1,4 @@
+// src/app/api/invitation/send/route.ts
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
@@ -35,9 +36,14 @@ export async function POST(req: Request) {
     if (!reservation) {
       return NextResponse.json({ message: "Reservation not found" }, { status: 404 });
     }
-    const sportName = reservation.sport || "Sports Session";
+    const sportName = reservation.facilityName || reservation.sport || "Sports Session";
+    const reservationDate = reservation.date || "TBD";
+    const reservationTimeSlot =
+      reservation.startTime && reservation.endTime
+        ? `${reservation.startTime} - ${reservation.endTime}`
+        : "TBD";
 
-    // ✅ FIX: receiver may not have an account — store email string instead
+    // receiver may not have an account — store email string instead
     const receiver = await User.findOne({ email: email.toLowerCase() });
 
     const exist = await Invitation.findOne({
@@ -51,16 +57,24 @@ export async function POST(req: Request) {
     const invite = await Invitation.create({
       sender: sender._id,
       ...(receiver ? { receiver: receiver._id } : {}),
-      receiverEmail: email.toLowerCase(), // always store email for lookup
+      receiverEmail: email.toLowerCase(),
       reservation: reservationId,
       status: "pending",
-      expiresAt: new Date(Date.now() + 2 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
     });
 
     try {
-      await sendInvitationEmail(email.toLowerCase(), sender.name, sportName, invite._id.toString());
+      await sendInvitationEmail(
+        email.toLowerCase(),
+        sender.name,
+        sportName,
+        invite._id.toString(),
+        reservationDate,
+        reservationTimeSlot
+      );
+      console.log(`✅ Invitation email sent to ${email}`);
     } catch (emailError) {
-      console.error("Email failed but invite was created:", emailError);
+      console.error("❌ Email failed but invite was created:", emailError);
     }
 
     return NextResponse.json(

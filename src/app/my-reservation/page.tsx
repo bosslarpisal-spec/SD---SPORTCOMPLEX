@@ -1,3 +1,4 @@
+// src/app/my-reservation/page.tsx (FINAL - Hide Pending Invitees)
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -6,9 +7,23 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import PageBackground from "@/components/PageBackground";
-import { Trophy, Users, UtensilsCrossed, Dumbbell, Award, Timer, type LucideIcon } from "lucide-react";
-
-// ── Types ─────────────────────────────────────────────────
+import {
+  Target,
+  Globe,
+  Feather,
+  Disc,
+  Users,
+  UtensilsCrossed,
+  Dumbbell,
+  Award,
+  Timer,
+  MapPin,
+  Calendar,
+  Clock,
+  AlertTriangle,
+  ClipboardList,
+  type LucideIcon,
+} from "lucide-react";
 
 interface Invitee {
   email: string;
@@ -17,6 +32,7 @@ interface Invitee {
 
 interface Reservation {
   _id: string;
+  id?: string;
   facilityType?: string;
   facilityName?: string;
   sport?: string;
@@ -28,8 +44,13 @@ interface Reservation {
   duration?: number;
   minPlayers?: number;
   invitees?: Invitee[];
-  invitationDetails?: { email: string; status: string; expiresAt?: string }[];
-  status: string;
+  invitationDetails?: {
+    email: string;
+    name?: string;
+    status: string;
+    expiresAt?: string;
+  }[];
+  status: "upcoming" | "confirmed" | "completed" | "cancelled" | "active";
   role?: "host" | "invitee";
   countdownDeadline?: string;
   cancelledAt?: string;
@@ -39,25 +60,24 @@ interface Reservation {
   expiresAt?: string;
 }
 
-// ── Constants ─────────────────────────────────────────────
-
 const FACILITY_ICONS: Record<string, LucideIcon> = {
-  sports: Trophy, coworking: Users, canteen: UtensilsCrossed, info: Dumbbell, membership: Award,
+  sports: Target,
+  coworking: Users,
+  canteen: UtensilsCrossed,
+  info: Dumbbell,
+  membership: Award,
 };
 
-const SPORT_EMOJI: Record<string, string> = {
-  "Football Field":   "⚽",
-  "Volleyball Court": "🏐",
-  "Badminton Court":  "🏸",
-  "Table Tennis":     "🏓",
-  "Private Room A":   "🚪",
-  "Private Room B":   "🚪",
-  "Co-working Table": "💻",
+const SPORT_NAME_ICONS: Record<string, LucideIcon> = {
+  "Football Field": Target,
+  "Volleyball Court": Globe,
+  "Badminton Court": Feather,
+  "Table Tennis": Disc,
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  upcoming:  "bg-[#FF7B00]/10 text-[#FF7B00]",
-  active:    "bg-[#FF7B00]/10 text-[#FF7B00]",
+  upcoming: "bg-[#FF7B00]/10 text-[#FF7B00]",
+  active: "bg-[#FF7B00]/10 text-[#FF7B00]",
   confirmed: "bg-green-500/10 text-green-400",
   completed: "bg-green-500/10 text-green-400",
   cancelled: "bg-red-500/10 text-red-400",
@@ -66,13 +86,17 @@ const STATUS_STYLES: Record<string, string> = {
 const INVITEE_STYLES: Record<string, string> = {
   accepted: "bg-green-500/10 text-green-400",
   declined: "bg-red-500/10 text-red-400",
-  expired:  "bg-red-500/10 text-red-400",
-  pending:  "bg-white/10 text-white/50",
+  expired: "bg-red-500/10 text-red-400",
+  pending: "bg-white/10 text-white/50",
 };
 
-// ── Countdown: invitee invitation expiry ──────────────────
-
-function InviteCountdown({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
+function InviteCountdown({
+  expiresAt,
+  onExpire,
+}: {
+  expiresAt: string;
+  onExpire: () => void;
+}) {
   const [timeLeft, setTimeLeft] = useState("");
   const firedRef = useRef(false);
 
@@ -81,7 +105,10 @@ function InviteCountdown({ expiresAt, onExpire }: { expiresAt: string; onExpire:
       const diff = new Date(expiresAt).getTime() - Date.now();
       if (diff <= 0) {
         setTimeLeft("Expired");
-        if (!firedRef.current) { firedRef.current = true; onExpire(); }
+        if (!firedRef.current) {
+          firedRef.current = true;
+          onExpire();
+        }
       } else {
         const m = Math.floor((diff % 3600000) / 60000);
         const s = Math.floor((diff % 60000) / 1000);
@@ -96,14 +123,14 @@ function InviteCountdown({ expiresAt, onExpire }: { expiresAt: string; onExpire:
   if (!timeLeft) return null;
   const isExpired = timeLeft === "Expired";
   return (
-    <span className={`text-[0.65rem] font-bold flex items-center gap-1 px-2 py-0.5 rounded-full
-      ${isExpired ? "bg-red-500/10 text-red-400" : "bg-[#FF7B00]/10 text-[#FF7B00]"}`}>
+    <span
+      className={`text-[0.65rem] font-bold flex items-center gap-1 px-2 py-0.5 rounded-full
+      ${isExpired ? "bg-red-500/10 text-red-400" : "bg-[#FF7B00]/10 text-[#FF7B00]"}`}
+    >
       <Timer size={11} /> {isExpired ? "Offer Expired" : `Expires in ${timeLeft}`}
     </span>
   );
 }
-
-// ── Countdown: host reservation deadline ─────────────────
 
 function Countdown({ deadline }: { deadline: string }) {
   const [remaining, setRemaining] = useState("");
@@ -111,7 +138,10 @@ function Countdown({ deadline }: { deadline: string }) {
   useEffect(() => {
     const tick = () => {
       const diff = new Date(deadline).getTime() - Date.now();
-      if (diff <= 0) { setRemaining("Expired"); return; }
+      if (diff <= 0) {
+        setRemaining("Expired");
+        return;
+      }
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setRemaining(`${m}m ${s}s`);
@@ -123,24 +153,36 @@ function Countdown({ deadline }: { deadline: string }) {
 
   const isExpired = remaining === "Expired";
   return (
-    <span className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full flex items-center gap-1
-      ${isExpired ? "bg-red-500/10 text-red-400" : "bg-[#FF7B00]/10 text-[#FF7B00]"}`}>
+    <span
+      className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full flex items-center gap-1
+      ${isExpired ? "bg-red-500/10 text-red-400" : "bg-[#FF7B00]/10 text-[#FF7B00]"}`}
+    >
       <Timer size={11} /> {isExpired ? "Countdown expired" : `${remaining} left`}
     </span>
   );
 }
 
-// ── Host pending progress ─────────────────────────────────
-
-function PendingCountdown({ invitationDetails }: { invitationDetails: { email: string; status: string; expiresAt?: string }[] }) {
+function PendingCountdown({
+  invitationDetails,
+}: {
+  invitationDetails: {
+    email: string;
+    name?: string;
+    status: string;
+    expiresAt?: string;
+  }[];
+}) {
   const [timeLeft, setTimeLeft] = useState("");
-  const expiresAt = invitationDetails.find(i => i.expiresAt)?.expiresAt;
+  const expiresAt = invitationDetails.find((i) => i.expiresAt)?.expiresAt;
 
   useEffect(() => {
     if (!expiresAt) return;
     const tick = () => {
       const diff = new Date(expiresAt).getTime() - Date.now();
-      if (diff <= 0) { setTimeLeft("Expired"); return; }
+      if (diff <= 0) {
+        setTimeLeft("Expired");
+        return;
+      }
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setTimeLeft(`${m}m ${s}s`);
@@ -150,9 +192,13 @@ function PendingCountdown({ invitationDetails }: { invitationDetails: { email: s
     return () => clearInterval(id);
   }, [expiresAt]);
 
-  const total    = invitationDetails.length;
-  const accepted = invitationDetails.filter(i => i.status === "accepted").length;
-  const pending  = invitationDetails.filter(i => i.status === "pending").length;
+  const total = invitationDetails.length;
+  const accepted = invitationDetails.filter(
+    (i) => i.status === "accepted"
+  ).length;
+  const pending = invitationDetails.filter(
+    (i) => i.status === "pending"
+  ).length;
   const majority = Math.floor(total / 2) + 1;
 
   if (total === 0) return null;
@@ -169,161 +215,147 @@ function PendingCountdown({ invitationDetails }: { invitationDetails: { email: s
               <Timer size={10} /> {timeLeft}
             </span>
           )}
-          <span className="text-[10px] font-black text-white/40">{pending} pending</span>
+          <span className="text-[10px] font-black text-white/40">
+            {pending} pending
+          </span>
         </div>
       </div>
       <div className="w-full bg-white/[0.08] rounded-full h-1.5 mb-1.5">
         <div
-          className={`h-1.5 rounded-full transition-all duration-500 ${accepted >= majority ? "bg-green-500" : "bg-[#FF7B00]"}`}
+          className={`h-1.5 rounded-full transition-all duration-500 ${
+            accepted >= majority ? "bg-green-500" : "bg-[#FF7B00]"
+          }`}
           style={{ width: `${Math.min(100, (accepted / majority) * 100)}%` }}
         />
       </div>
       <p className="text-[10px] text-white/40 font-semibold">
         {accepted >= majority
           ? "✓ Majority accepted — reservation confirmed!"
-          : `${accepted}/${majority} accepted needed${accepted < majority ? ` — need ${majority - accepted} more` : ""}`}
+          : `${accepted}/${majority} accepted needed${
+              accepted < majority ? ` — need ${majority - accepted} more` : ""
+            }`}
       </p>
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────
-
 export default function MyReservationPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [list,       setList]       = useState<Reservation[]>([]);
-  const [fetching,   setFetching]   = useState(true);
-  const [active,     setActive]     = useState("All");
-  const [cancelId,   setCancelId]   = useState<string | null>(null);
+  const [list, setList] = useState<Reservation[]>([]);
+  const [fetching, setFetching] = useState(true);
+  const [active, setActive] = useState("All");
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; status: string } | null>(null);
   const [cancelling, setCancelling] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; id: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    email: string;
+    id: string;
+  } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (session?.user) {
       setCurrentUser({
-        name:  session.user.name  ?? "",
+        name: session.user.name ?? "",
         email: session.user.email ?? "",
-        id:    (session.user as any).id ?? "",
+        id: (session.user as any).id ?? "",
       });
     }
   }, [session, status, router]);
 
-  // ── Fetch new-style flat array ──
-  const fetchNew = useCallback(async () => {
+  const fetchReservations = useCallback(async () => {
     setFetching(true);
     try {
       const res = await fetch("/api/reservations");
       if (res.ok) {
-        const data: Reservation[] = await res.json();
-        setList(data);
+        const data = await res.json();
+
+        const combined: Reservation[] = [
+          ...(data.owned ?? []).map((r: any) => ({
+            ...r,
+            id: r._id?.toString() || r.id,
+            role: "host" as const,
+          })),
+          ...(data.received ?? []).map((r: any) => ({
+            ...r,
+            id: r._id?.toString() || r.id,
+            role: "invitee" as const,
+          })),
+        ];
+
+        setList(combined);
+
         const now = Date.now();
-        data.filter(r => r.status === "cancelled" && r.cancelledAt).forEach(r => {
-          const elapsed   = now - new Date(r.cancelledAt!).getTime();
-          const remaining = 15 * 60 * 1000 - elapsed;
-          if (remaining > 0) {
-            setTimeout(() => setList(prev => prev.filter(x => x._id !== r._id)), remaining);
-          }
-        });
+        combined
+          .filter((r) => r.status === "cancelled" && r.cancelledAt)
+          .forEach((r) => {
+            const elapsed = now - new Date(r.cancelledAt!).getTime();
+            const remaining = 15 * 60 * 1000 - elapsed;
+            if (remaining > 0) {
+              setTimeout(
+                () => setList((prev) => prev.filter((x) => x._id !== r._id)),
+                remaining
+              );
+            }
+          });
       }
-    } finally {
-      setFetching(false);
-    }
-  }, []);
-
-  // ── Fetch legacy { owned, received } ──
-  const fetchLegacy = useCallback(async (email: string) => {
-    try {
-      const res  = await fetch(`/api/reservation?email=${encodeURIComponent(email)}`);
-      const data = await res.json();
-      const combined: Reservation[] = [
-        ...(data.owned    || []).map((r: any) => ({ ...r, role: "host"    as const })),
-        ...(data.received || []).map((r: any) => ({ ...r, role: "invitee" as const })),
-      ];
-
-      for (const r of combined) {
-        if (r.role === "host" && r.status === "active") {
-          fetch("/api/reservation/check-expired", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reservationId: r._id }),
-          }).catch(() => {});
-        }
-      }
-
-      const now = new Date();
-      setList(combined.filter(r => {
-        if (r.role === "host" && r.status === "confirmed" && r.date && r.timeSlot) {
-          return now < new Date(`${r.date}T${r.timeSlot}:00`);
-        }
-        return true;
-      }));
     } catch (err) {
-      console.error("Legacy fetch failed:", err);
+      console.error("Fetch reservations failed:", err);
     } finally {
       setFetching(false);
     }
   }, []);
 
   useEffect(() => {
-    if (session) fetchNew();
-  }, [session, fetchNew]);
+    if (session) {
+      fetchReservations();
+    }
+  }, [session, fetchReservations]);
 
-  useEffect(() => {
-    if (!currentUser?.email) return;
-    fetchLegacy(currentUser.email);
-    const interval = setInterval(() => fetchLegacy(currentUser.email), 5000);
-    return () => clearInterval(interval);
-  }, [currentUser?.email, fetchLegacy]);
-
-  // ── Cancel handlers ──
   const handleCancel = async () => {
-    if (!cancelId) return;
+    if (!cancelTarget) return;
     setCancelling(true);
-    const target = list.find(r => r._id === cancelId);
     try {
-      if (target?.facilityType) {
-        // New-style: PATCH
-        const res = await fetch(`/api/reservations/${cancelId}`, { method: "PATCH" });
-        if (res.ok) {
-          setList(prev => prev.map(r =>
-            r._id === cancelId ? { ...r, status: "cancelled", cancelledAt: new Date().toISOString() } : r
-          ));
-          setTimeout(() => setList(prev => prev.filter(r => r._id !== cancelId)), 15 * 60 * 1000);
-        }
-      } else {
-        // Legacy: DELETE
-        const res = await fetch(`/api/reservation?id=${cancelId}`, { method: "DELETE" });
-        if (res.ok) setList(prev => prev.filter(r => r._id !== cancelId));
+      const res = await fetch(`/api/reservations/${cancelTarget.id}`, {
+        method: "PATCH",
+      });
+      if (res.ok) {
+        setList((prev) =>
+          prev.map((r) =>
+            r._id === cancelTarget.id
+              ? {
+                  ...r,
+                  status: "cancelled",
+                  cancelledAt: new Date().toISOString(),
+                }
+              : r
+          )
+        );
+        setTimeout(
+          () => setList((prev) => prev.filter((r) => r._id !== cancelTarget.id)),
+          15 * 60 * 1000
+        );
       }
     } finally {
       setCancelling(false);
-      setCancelId(null);
+      setCancelTarget(null);
     }
   };
 
-  // ── Respond to invitation ──
-  const handleRespond = async (invitationId: string, response: "accepted" | "declined") => {
+  const handleRespond = async (
+    invitationId: string,
+    response: "accepted" | "declined"
+  ) => {
     try {
       const res = await fetch("/api/invitation/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invitationId, response }),
       });
-      if (res.ok && currentUser?.email) {
-        if (response === "declined") {
-          const inv = list.find(r => r.invitationId === invitationId);
-          if (inv) {
-            fetch("/api/reservation/check-expired", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ reservationId: inv._id }),
-            }).catch(() => {});
-          }
-        }
-        fetchLegacy(currentUser.email);
+      if (res.ok) {
+        fetchReservations();
       }
     } catch (e) {
       console.error("Respond failed:", e);
@@ -331,30 +363,41 @@ export default function MyReservationPage() {
   };
 
   const confirmedCount = (r: Reservation) =>
-    (r.invitees ?? []).filter(i => i.status === "accepted").length;
+    (r.invitees ?? []).filter((i) => i.status === "accepted").length;
+
   const isSportsConfirmed = (r: Reservation) =>
     confirmedCount(r) >= Math.ceil((r.minPlayers ?? 2) / 2);
 
-  // ── Tabs ──
+  const safeList = Array.isArray(list) ? list : [];
+
   const counts = {
-    upcoming:  list.filter(r => r.status === "upcoming" || r.status === "active").length,
-    completed: list.filter(r => r.status === "completed" || r.status === "confirmed").length,
-    cancelled: list.filter(r => r.status === "cancelled").length,
+    upcoming: safeList.filter(
+      (r) => r.status === "upcoming" || r.status === "active"
+    ).length,
+    completed: safeList.filter(
+      (r) => r.status === "completed" || r.status === "confirmed"
+    ).length,
+    cancelled: safeList.filter((r) => r.status === "cancelled").length,
   };
 
   const tabs = [
-    { key: "All",       label: "All"       },
-    { key: "upcoming",  label: "Upcoming"  },
+    { key: "All", label: "All" },
+    { key: "upcoming", label: "Upcoming" },
     { key: "completed", label: "Completed" },
     { key: "cancelled", label: "Cancelled" },
   ];
 
   const filtered = (() => {
-    if (active === "All")       return list;
-    if (active === "upcoming")  return list.filter(r => r.status === "upcoming"  || r.status === "active");
-    if (active === "completed") return list.filter(r => r.status === "completed" || r.status === "confirmed");
-    if (active === "cancelled") return list.filter(r => r.status === "cancelled");
-    return list;
+    if (active === "All") return safeList;
+    if (active === "upcoming")
+      return safeList.filter((r) => r.status === "upcoming" || r.status === "active");
+    if (active === "completed")
+      return safeList.filter(
+        (r) => r.status === "completed" || r.status === "confirmed"
+      );
+    if (active === "cancelled")
+      return safeList.filter((r) => r.status === "cancelled");
+    return safeList;
   })();
 
   if (status === "loading") return null;
@@ -363,19 +406,35 @@ export default function MyReservationPage() {
     <PageBackground>
       <Navbar />
 
-      {/* Cancel confirm modal */}
-      {cancelId && (
+      {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div className="bg-[#141414] border border-white/[0.07] rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
-            <div className="text-4xl mb-4">⚠️</div>
-            <h3 className="text-lg font-extrabold text-white mb-2">Cancel Reservation?</h3>
-            <p className="text-sm text-white/50 mb-6">
-              This cannot be undone. Your slot will be released.<br />
-              <span className="text-xs text-white/30">The reservation will be removed in 15 minutes.</span>
+            <div className="w-14 h-14 bg-[#FF7B00]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-7 h-7 text-[#FF7B00]" />
+              </div>
+            <h3 className="text-lg font-extrabold text-white mb-2">
+              Cancel Reservation?
+            </h3>
+            <p className="text-sm text-white/50 mb-4">
+              This cannot be undone. Your slot will be released.
+              <br />
+              <span className="text-xs text-white/30">
+                The reservation will be removed in 15 minutes.
+              </span>
             </p>
+            {cancelTarget.status === "completed" && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4 text-left">
+                <p className="text-xs font-bold text-red-400">
+                  <AlertTriangle size={12} className="inline mr-1" /> 24-Hour Booking Penalty
+                </p>
+                <p className="text-xs text-red-400/70 mt-1">
+                  Cancelling a confirmed reservation will suspend your booking privileges for 24 hours.
+                </p>
+              </div>
+            )}
             <div className="flex gap-3">
               <button
-                onClick={() => setCancelId(null)}
+                onClick={() => setCancelTarget(null)}
                 disabled={cancelling}
                 className="flex-1 py-3 text-sm font-semibold text-white/70 bg-white/[0.06] hover:bg-white/[0.1] rounded-xl transition-colors"
               >
@@ -394,25 +453,32 @@ export default function MyReservationPage() {
       )}
 
       <div className="pt-16">
-        {/* Header */}
         <div className="bg-[#111] border-b border-white/[0.07]">
           <div className="max-w-4xl mx-auto px-6 py-8">
-            <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">My Reservations</h1>
-            <p className="text-sm text-white/40">Track and manage all your facility bookings</p>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">
+              My Reservations
+            </h1>
+            <p className="text-sm text-white/40">
+              Track and manage all your facility bookings
+            </p>
 
             <div className="mt-5 flex gap-2 flex-wrap">
-              {tabs.map(tab => (
+              {tabs.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActive(tab.key)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all border
-                    ${active === tab.key
-                      ? "bg-[#FF7B00] text-white border-[#FF7B00] shadow-btn"
-                      : "bg-white/[0.04] text-white/60 border-white/10 hover:border-[#FF7B00]/50 hover:text-[#FF7B00]"}`}
+                    ${
+                      active === tab.key
+                        ? "bg-[#FF7B00] text-white border-[#FF7B00] shadow-btn"
+                        : "bg-white/[0.04] text-white/60 border-white/10 hover:border-[#FF7B00]/50 hover:text-[#FF7B00]"
+                    }`}
                 >
                   {tab.label}
                   {tab.key !== "All" && (
-                    <span className="ml-1 opacity-70">({counts[tab.key as keyof typeof counts]})</span>
+                    <span className="ml-1 opacity-70">
+                      ({counts[tab.key as keyof typeof counts]})
+                    </span>
                   )}
                 </button>
               ))}
@@ -420,7 +486,6 @@ export default function MyReservationPage() {
           </div>
         </div>
 
-        {/* List */}
         <div className="max-w-4xl mx-auto px-6 py-8">
           {fetching ? (
             <div className="text-center py-20 text-white/40">
@@ -428,8 +493,10 @@ export default function MyReservationPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-20">
-              <div className="text-5xl mb-4">📋</div>
-              <p className="font-semibold text-white/50 mb-2">No reservations found</p>
+              <ClipboardList className="w-12 h-12 text-white/20 mx-auto mb-4" />
+              <p className="font-semibold text-white/50 mb-2">
+                No reservations found
+              </p>
               <Link
                 href="/facility"
                 className="inline-block mt-2 px-5 py-2.5 bg-[#FF7B00] text-white text-sm font-bold rounded-xl hover:bg-[#e06f00] transition-colors shadow-btn"
@@ -439,47 +506,55 @@ export default function MyReservationPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {filtered.map(r => {
-                const isSports    = r.facilityType === "sports" || !!r.sport;
-                const isLegacy    = !r.facilityType && !!r.sport;
+              {filtered.map((r) => {
+                const isSports =
+                  r.facilityType === "sports" || !!r.sport;
                 const displayName = r.facilityName ?? r.sport ?? "Reservation";
-                const displayTime = r.startTime && r.endTime
-                  ? `${r.startTime} – ${r.endTime}`
-                  : (r.timeSlot ?? "");
-                const FacilityIcon = FACILITY_ICONS[r.facilityType ?? "sports"] ?? Trophy;
-                const isHost       = !r.role || r.role === "host";
-                const accepted     = confirmedCount(r);
-                const sportsDone   = isSportsConfirmed(r);
-                const isActive     = r.status === "upcoming" || r.status === "active";
+                const displayTime =
+                  r.startTime && r.endTime
+                    ? `${r.startTime} – ${r.endTime}`
+                    : r.timeSlot ?? "";
+                const FacilityIcon =
+                  SPORT_NAME_ICONS[displayName] ??
+                  FACILITY_ICONS[r.facilityType ?? "sports"] ??
+                  Target;
+                const isHost = !r.role || r.role === "host";
+                const accepted = confirmedCount(r);
+                const sportsDone = isSportsConfirmed(r);
+                const isActive =
+                  r.status === "upcoming" || r.status === "active";
 
                 return (
                   <div
                     key={r._id + (r.role ?? "")}
                     className={`bg-[#111] rounded-2xl p-5 border transition-all duration-200
                       hover:border-[#FF7B00]/30 hover:shadow-[0_0_24px_rgba(255,123,0,0.07)]
-                      ${r.status === "cancelled" ? "opacity-50 border-white/[0.04]" : "border-white/[0.07]"}`}
+                      ${
+                        r.status === "cancelled"
+                          ? "opacity-50 border-white/[0.04]"
+                          : "border-white/[0.07]"
+                      }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-
-                      {/* Icon */}
-                      <div className="w-12 h-12 rounded-xl bg-[#FF7B00]/10 border border-[#FF7B00]/20 flex items-center justify-center shrink-0 text-2xl">
-                        {isLegacy
-                          ? (SPORT_EMOJI[displayName] ?? "🏆")
-                          : <FacilityIcon className="w-6 h-6 text-[#FF7B00]" />
-                        }
+                      <div className="w-12 h-12 rounded-xl bg-[#FF7B00]/10 border border-[#FF7B00]/20 flex items-center justify-center shrink-0">
+                        <FacilityIcon className="w-6 h-6 text-[#FF7B00]" />
                       </div>
 
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h3 className="font-extrabold text-white text-sm">{displayName}</h3>
+                          <h3 className="font-extrabold text-white text-sm">
+                            {displayName}
+                          </h3>
 
-                          {/* Status */}
-                          <span className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[r.status] ?? "bg-white/10 text-white/50"}`}>
+                          <span
+                            className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full capitalize ${
+                              STATUS_STYLES[r.status] ??
+                              "bg-white/10 text-white/50"
+                            }`}
+                          >
                             {r.status}
                           </span>
 
-                          {/* Role badge */}
                           {r.role === "host" && (
                             <span className="text-[0.65rem] font-black px-2 py-0.5 rounded-full bg-[#FF7B00]/10 text-[#FF7B00] border border-[#FF7B00]/20 uppercase">
                               Your Reservation
@@ -491,125 +566,147 @@ export default function MyReservationPage() {
                             </span>
                           )}
 
-                          {/* Sports confirmation */}
-                          {isSports && isActive && (r.invitees?.length ?? 0) > 0 && (
-                            <span className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full
-                              ${sportsDone ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"}`}>
-                              {sportsDone ? "✓ Confirmed" : "Pending confirmation"}
-                            </span>
-                          )}
-
-                          {/* Invitee expiry */}
-                          {r.role === "invitee" && r.expiresAt && r.inviteStatus === "pending" && (
-                            <InviteCountdown
-                              expiresAt={r.expiresAt}
-                              onExpire={() => handleRespond(r.invitationId!, "declined")}
-                            />
-                          )}
-                        </div>
-
-                        {/* Details */}
-                        {r.slot && (
-                          <p className="text-xs text-white/40 mb-0.5">📍 {r.slot}</p>
-                        )}
-                        <p className="text-xs text-white/40 mb-0.5">
-                          📅 {r.date} &nbsp;·&nbsp; 🕐 {displayTime}
-                          {r.duration && <> &nbsp;·&nbsp; ⏱ {r.duration}h</>}
-                        </p>
-
-                        {/* Host reservation countdown */}
-                        {isHost && isActive && r.countdownDeadline && (
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <Countdown deadline={r.countdownDeadline} />
-                            {r.minPlayers && (
-                              <span className="text-[0.7rem] text-white/40">
-                                {accepted} / {Math.ceil(r.minPlayers / 2)} needed
+                          {isSports &&
+                            isActive &&
+                            (r.invitees?.length ?? 0) > 0 && (
+                              <span
+                                className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full
+                              ${
+                                sportsDone
+                                  ? "bg-green-500/10 text-green-400"
+                                  : "bg-amber-500/10 text-amber-400"
+                              }`}
+                              >
+                                {sportsDone
+                                  ? "✓ Confirmed"
+                                  : "Pending confirmation"}
                               </span>
                             )}
-                          </div>
-                        )}
 
-                        {/* Legacy invitees + progress */}
-                        {r.role === "host" && (r.invitationDetails?.length ?? 0) > 0 && (
-                          <>
-                            <div className="mt-3 pt-3 border-t border-white/[0.07]">
-                              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">
-                                Invited Participants
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {r.invitationDetails!.map((inv, i) => (
-                                  <div key={i} className="px-3 py-1 bg-white/[0.04] rounded-lg text-[10px] font-bold border border-white/[0.07] flex items-center gap-2">
-                                    <span className="text-white/60">{inv.email}</span>
-                                    <span className={`text-[9px] font-black uppercase ${INVITEE_STYLES[inv.status] ?? "text-white/40"}`}>
-                                      ● {inv.status}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            {r.status !== "confirmed" && r.status !== "completed" && (
-                              <PendingCountdown invitationDetails={r.invitationDetails!} />
+                          {r.role === "invitee" &&
+                            r.expiresAt &&
+                            r.inviteStatus === "pending" && (
+                              <InviteCountdown
+                                expiresAt={r.expiresAt}
+                                onExpire={() =>
+                                  handleRespond(r.invitationId!, "declined")
+                                }
+                              />
                             )}
-                          </>
-                        )}
+                        </div>
 
-                        {/* New-style invitees */}
-                        {isSports && (r.invitees?.length ?? 0) > 0 && (
-                          <div className="mt-4 pt-4 border-t border-white/[0.07]">
-                            <p className="text-[0.72rem] font-bold text-white/40 uppercase tracking-wide mb-2">Invitees</p>
-                            <div className="flex flex-wrap gap-2">
-                              {r.invitees!.map((inv, i) => (
-                                <div key={i} className="flex items-center gap-1.5 bg-white/[0.04] rounded-lg px-3 py-1.5">
-                                  <span className="text-xs text-white/70">{inv.email}</span>
-                                  <span className={`text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full capitalize ${INVITEE_STYLES[inv.status]}`}>
-                                    {inv.status}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                        {r.slot && (
+                          <p className="text-xs text-white/40 mb-0.5 flex items-center gap-1">
+                            <MapPin size={11} /> {r.slot}
+                          </p>
                         )}
+                        <p className="text-xs text-white/40 mb-0.5 flex items-center gap-1">
+                          <Calendar size={11} /> {r.date} &nbsp;·&nbsp; <Clock size={11} /> {displayTime}
+                          {r.duration && <> &nbsp;·&nbsp; <Timer size={11} /> {r.duration}h</>}
+                        </p>
+
+                        {isHost &&
+                          isActive &&
+                          r.countdownDeadline && (
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <Countdown
+                                deadline={r.countdownDeadline}
+                              />
+                              {r.minPlayers && (
+                                <span className="text-[0.7rem] text-white/40">
+                                  {accepted} /{" "}
+                                  {Math.ceil(r.minPlayers / 2)} needed
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                        {/* ✅ KEEP OLD STYLE: Invitees list - ALL invites together */}
+                        {r.role === "host" &&
+                          (r.invitationDetails?.length ?? 0) > 0 && (
+                            <>
+                              <div className="mt-3 pt-3 border-t border-white/[0.07]">
+                                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">
+                                  Invited Participants
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {r.invitationDetails!.map((inv, i) => (
+                                    <div
+                                      key={i}
+                                      className="px-3 py-1 bg-white/[0.04] rounded-lg text-[10px] font-bold border border-white/[0.07] flex items-center gap-2"
+                                    >
+                                      <span className="text-white/60">
+                                        {inv.email}
+                                      </span>
+                                      <span
+                                        className={`text-[9px] font-black uppercase ${
+                                          INVITEE_STYLES[inv.status] ??
+                                          "text-white/40"
+                                        }`}
+                                      >
+                                        ● {inv.status}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              {/* Countdown section removed per user request */}
+                            </>
+                          )}
                       </div>
 
-                      {/* Actions */}
                       <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className="text-[0.68rem] font-mono text-white/20">{r._id.slice(-8).toUpperCase()}</span>
+                        <span className="text-[0.68rem] font-mono text-white/20">
+                          {(r._id || r.id || "").slice(-8).toUpperCase()}
+                        </span>
 
-                        {/* Cancel */}
-                        {isActive && isHost && (
+                        {(isActive || r.status === "completed") && isHost && (
                           <button
-                            onClick={() => setCancelId(r._id)}
+                            onClick={() => setCancelTarget({ id: r._id, status: r.status })}
                             className="px-3 py-1.5 text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
                           >
                             Cancel
                           </button>
                         )}
 
-                        {/* Invitee: accept / decline */}
-                        {r.role === "invitee" && r.inviteStatus === "pending" && r.expiresAt && new Date() < new Date(r.expiresAt) && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleRespond(r.invitationId!, "accepted")}
-                              className="px-4 py-2 bg-[#FF7B00] text-white text-xs font-bold rounded-xl hover:bg-[#e06f00] transition-colors shadow-btn"
-                            >
-                              ✓ Accept
-                            </button>
-                            <button
-                              onClick={() => handleRespond(r.invitationId!, "declined")}
-                              className="px-4 py-2 bg-white/[0.06] text-white/60 text-xs font-bold rounded-xl hover:bg-white/[0.1] transition-colors border border-white/10"
-                            >
-                              ✕ Decline
-                            </button>
-                          </div>
-                        )}
+                        {r.role === "invitee" &&
+                          r.inviteStatus === "pending" &&
+                          r.expiresAt &&
+                          new Date() < new Date(r.expiresAt) && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() =>
+                                  handleRespond(r.invitationId!, "accepted")
+                                }
+                                className="px-4 py-2 bg-[#FF7B00] text-white text-xs font-bold rounded-xl hover:bg-[#e06f00] transition-colors shadow-btn"
+                              >
+                                ✓ Accept
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleRespond(r.invitationId!, "declined")
+                                }
+                                className="px-4 py-2 bg-white/[0.06] text-white/60 text-xs font-bold rounded-xl hover:bg-white/[0.1] transition-colors border border-white/10"
+                              >
+                                ✕ Decline
+                              </button>
+                            </div>
+                          )}
 
-                        {/* Invitee: already responded */}
-                        {r.role === "invitee" && r.inviteStatus && r.inviteStatus !== "pending" && (
-                          <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg
-                            ${r.inviteStatus === "accepted" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-                            You {r.inviteStatus}
-                          </span>
-                        )}
+                        {r.role === "invitee" &&
+                          r.inviteStatus &&
+                          r.inviteStatus !== "pending" && (
+                            <span
+                              className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg
+                            ${
+                              r.inviteStatus === "accepted"
+                                ? "bg-green-500/10 text-green-400"
+                                : "bg-red-500/10 text-red-400"
+                            }`}
+                            >
+                              You {r.inviteStatus}
+                            </span>
+                          )}
                       </div>
                     </div>
                   </div>

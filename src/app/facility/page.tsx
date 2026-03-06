@@ -1,11 +1,13 @@
+// src/app/facility/page.tsx //
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import {
-  Trophy, Dumbbell, Users, UtensilsCrossed, Award, Waves,
+  Dumbbell, Users, UtensilsCrossed, Award, Waves,
+  Target, Globe, Feather, Disc, MapPin, Clock, Search, AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import PageBackground from "@/components/PageBackground";
@@ -37,25 +39,25 @@ const CANTEEN_SLOTS   = Array.from({ length: 30 }, (_, i) => `T${i + 1}`);
 const FACILITIES: Facility[] = [
   {
     id: 1, name: "Football Field", category: "Sports", type: "sports",
-    Icon: Trophy, location: "Zone A", open: "06:00 – 22:00",
+    Icon: Target, location: "Zone A", open: "06:00 – 22:00",
     desc: "Full-size outdoor football pitch with floodlights.",
     minPlayers: 6, slotNames: ["Field 1", "Field 2"],
   },
   {
     id: 2, name: "Volleyball Court", category: "Sports", type: "sports",
-    Icon: Trophy, location: "Zone A", open: "06:00 – 22:00",
+    Icon: Globe, location: "Zone A", open: "06:00 – 22:00",
     desc: "Indoor volleyball court with professional net and flooring.",
     minPlayers: 6, slotNames: ["Court 1", "Court 2"],
   },
   {
     id: 3, name: "Badminton Court", category: "Sports", type: "sports",
-    Icon: Dumbbell, location: "Sport Complex, 2F", open: "06:00 – 22:00",
+    Icon: Feather, location: "Sport Complex, 2F", open: "06:00 – 22:00",
     desc: "Professional-grade badminton courts with proper lighting.",
     minPlayers: 4, slotNames: BADMINTON_SLOTS,
   },
   {
     id: 4, name: "Table Tennis", category: "Sports", type: "sports",
-    Icon: Dumbbell, location: "Sport Complex, 1F", open: "06:00 – 22:00",
+    Icon: Disc, location: "Sport Complex, 1F", open: "06:00 – 22:00",
     desc: "Table tennis tables available for singles or doubles play.",
     minPlayers: 2, slotNames: TABLE_SLOTS,
   },
@@ -121,9 +123,8 @@ function toLocalDateStr(d: Date): string {
 }
 
 function minBookingDate(): string {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return toLocalDateStr(tomorrow);
+  const today = new Date();
+  return toLocalDateStr(today); // ✅ Allow TODAY bookings!
 }
 
 function maxBookingDate(): string {
@@ -136,12 +137,20 @@ function getStartSlots(date: string): string[] {
   const now = new Date();
   const todayStr = toLocalDateStr(now);
   const currentH = now.getHours();
-  if (date === todayStr && currentH < 6) return [];
+
   return ALL_SLOTS.filter(s => {
     const h = parseInt(s, 10);
+
+    // Filter out slots after facility closes (22:00)
     if (h >= 22) return false;
-    if (date === todayStr) return h > currentH;
-    return true;
+
+    // ✅ For TODAY: only show FUTURE slots
+    if (date === todayStr) {
+      return h > currentH; // If it's 15:30, only show 16:00+
+    }
+
+    // For future dates: show all slots from 06:00 to 21:00
+    return h >= 6;
   });
 }
 
@@ -280,6 +289,35 @@ function MembershipModal({ facility, onClose }: { facility: Facility; onClose: (
   );
 }
 
+// ── Penalty Modal ─────────────────────────────────────────
+
+function PenaltyModal({ penaltyLeft, onClose }: { penaltyLeft: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+      <div className="bg-[#141414] border border-white/[0.07] rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <div className="w-14 h-14 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle className="w-7 h-7 text-red-400" />
+        </div>
+        <h3 className="text-lg font-extrabold text-white mb-2">Booking Suspended</h3>
+        <p className="text-sm text-white/50 mb-4">
+          You cannot make a reservation right now.<br />
+          Please wait until the penalty period ends.
+        </p>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-6">
+          <p className="text-xs text-red-400/70 mb-1 font-semibold uppercase tracking-wider">Time remaining</p>
+          <p className="text-2xl font-black font-mono text-red-400">{penaltyLeft}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-full py-3 text-sm font-bold text-white bg-[#FF7B00] hover:bg-[#e06f00] rounded-xl transition-colors"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Booking Modal ─────────────────────────────────────────
 
 function BookingModal({ facility, onClose }: { facility: Facility; onClose: () => void }) {
@@ -376,7 +414,11 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
       });
       if (!res.ok) {
         const d = await res.json();
-        setError(d.error ?? "Booking failed. Please try again.");
+        if (d.error === "penalty") {
+          setError("Your booking is suspended due to a cancellation penalty. Please wait until the penalty expires.");
+        } else {
+          setError(d.message ?? d.error ?? "Booking failed. Please try again.");
+        }
       } else {
         setDone(true);
       }
@@ -629,12 +671,53 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
   );
 }
 
+// ── Penalty countdown helper ───────────────────────────────
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "00:00:00";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return [h, m, s].map(v => String(v).padStart(2, "0")).join(":");
+}
+
 // ── Main Page ─────────────────────────────────────────────
 
 export default function FacilityPage() {
+  const { data: session } = useSession();
   const [activeCategory, setActiveCategory] = useState("All");
-  const [search,   setSearch]   = useState("");
-  const [selected, setSelected] = useState<Facility | null>(null);
+  const [search,        setSearch]        = useState("");
+  const [selected,      setSelected]      = useState<Facility | null>(null);
+  const [penaltyUntil,    setPenaltyUntil]    = useState<string | null>(null);
+  const [penaltyLeft,     setPenaltyLeft]     = useState("");
+  const [showPenaltyModal, setShowPenaltyModal] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fetch penalty status
+  useEffect(() => {
+    if (!session) return;
+    fetch("/api/user/penalty")
+      .then(r => r.json())
+      .then(data => {
+        if (data.hasPenalty) setPenaltyUntil(data.penaltyUntil);
+      })
+      .catch(() => {});
+  }, [session]);
+
+  // Penalty countdown ticker
+  useEffect(() => {
+    if (!penaltyUntil) { setPenaltyLeft(""); return; }
+    const tick = () => {
+      const ms = new Date(penaltyUntil).getTime() - Date.now();
+      if (ms <= 0) { setPenaltyUntil(null); setPenaltyLeft(""); return; }
+      setPenaltyLeft(formatCountdown(ms));
+    };
+    tick();
+    intervalRef.current = setInterval(tick, 1000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [penaltyUntil]);
+
+  const hasPenalty = !!penaltyUntil && new Date(penaltyUntil) > new Date();
 
   const filtered = FACILITIES.filter(f => {
     const matchCat = activeCategory === "All" || f.category === activeCategory;
@@ -653,15 +736,25 @@ export default function FacilityPage() {
     <PageBackground>
       <Navbar />
       {renderModal()}
+      {showPenaltyModal && (
+        <PenaltyModal penaltyLeft={penaltyLeft} onClose={() => setShowPenaltyModal(false)} />
+      )}
 
       <div className="pt-16">
+        {hasPenalty && (
+          <div className="bg-[#FF7B00]/10 border-b border-[#FF7B00]/30 px-6 py-3 flex items-center justify-center gap-3 text-sm">
+            <span className="text-[#FF7B00] font-bold flex items-center gap-1"><AlertTriangle size={15} /> Booking Suspended</span>
+            <span className="text-white/60">You cancelled a confirmed reservation. Booking is disabled for</span>
+            <span className="font-mono font-extrabold text-[#FF7B00]">{penaltyLeft}</span>
+          </div>
+        )}
         <div className="bg-black border-b border-white/[0.07]">
           <div className="max-w-5xl mx-auto px-6 py-8">
             <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">Browse Facilities</h1>
             <p className="text-sm text-white/40">Find and book KMITL facilities instantly</p>
 
             <div className="mt-5 relative max-w-md">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none text-sm">🔍</span>
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none w-4 h-4" />
               <input
                 className="w-full pl-10 pr-4 py-3 bg-[#111] border border-white/10 rounded-xl text-sm text-white placeholder-white/25 outline-none focus:border-[#FF7B00] transition-all"
                 placeholder="Search facilities..."
@@ -690,7 +783,7 @@ export default function FacilityPage() {
         <div className="max-w-5xl mx-auto px-6 py-8">
           {filtered.length === 0 ? (
             <div className="text-center py-20 text-white/30">
-              <div className="text-4xl mb-3">🔎</div>
+              <Search className="w-10 h-10 mx-auto mb-3 text-white/20" />
               <p className="font-semibold">No facilities found</p>
             </div>
           ) : (
@@ -707,8 +800,8 @@ export default function FacilityPage() {
                   </div>
 
                   <h3 className="font-extrabold text-white text-sm mb-1">{f.name}</h3>
-                  <p className="text-xs text-white/40 mb-1">📍 {f.location}</p>
-                  <p className="text-xs text-white/40 mb-2">🕐 {f.open}</p>
+                  <p className="text-xs text-white/40 mb-1 flex items-center gap-1"><MapPin size={11} /> {f.location}</p>
+                  <p className="text-xs text-white/40 mb-2 flex items-center gap-1"><Clock size={11} /> {f.open}</p>
 
                   {f.minPlayers && (
                     <span className="text-xs font-semibold text-[#FF7B00] bg-[#FF7B00]/10 border border-[#FF7B00]/20 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
@@ -734,7 +827,13 @@ export default function FacilityPage() {
                   <p className="text-xs text-white/40 leading-relaxed mb-5 flex-1">{f.desc}</p>
 
                   <button
-                    onClick={() => setSelected(f)}
+                    onClick={() => {
+                      if (hasPenalty && f.type !== "info" && f.type !== "membership") {
+                        setShowPenaltyModal(true);
+                      } else {
+                        setSelected(f);
+                      }
+                    }}
                     className={`w-full py-2.5 text-white text-xs font-bold rounded-xl transition-all active:scale-[0.98]
                       ${f.type === "info" || f.type === "membership"
                         ? "bg-white/10 hover:bg-white/15 border border-white/15"
