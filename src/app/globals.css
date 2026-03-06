@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  /* Shared page background */
+  .page-bg {
+    @apply min-h-screen w-full flex flex-col items-center justify-center px-5 py-8 bg-page-grad;
+  }
+
+  /* Card */
+  .auth-card {
+    @apply w-full max-w-[420px] bg-white rounded-[22px] shadow-card px-10 py-10;
+  }
+
+  /* Input base */
+  .auth-input {
+    @apply w-full px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl
+           text-sm text-neutral-900 placeholder-neutral-400
+           outline-none transition-all duration-150
+           focus:border-[#3b6ef6] focus:bg-white;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply w-full py-3.5 bg-[#3b6ef6] hover:bg-[#2a5ce0] active:scale-[0.985]
+           text-white text-sm font-bold rounded-xl shadow-btn
+           transition-all duration-150 cursor-pointer border-none;
+  }
+
+  /* Google button */
+  .btn-google {
+    @apply w-full py-3.5 bg-[#3b6ef6] hover:bg-[#2a5ce0] active:scale-[0.985]
+           text-white text-sm font-bold rounded-xl shadow-btn
+           transition-all duration-150 cursor-pointer border-none
+           flex items-center justify-center gap-2.5;
+  }
+}
