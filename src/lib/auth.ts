@@ -27,7 +27,7 @@ export const authOptions: NextAuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) return null;
 
-        return { id: user._id.toString(), name: user.name, email: user.email };
+        return { id: user._id.toString(), name: user.name, email: user.email, image: user.image ?? "" };
       },
     }),
   ],
@@ -48,20 +48,28 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: updateData }) {
+      // Handle session updates (e.g. after profile save)
+      if (trigger === "update" && updateData) {
+        if (updateData.name)  token.name  = updateData.name;
+        if (updateData.image !== undefined) token.image = updateData.image;
+      }
       if (user) {
-        token.id = user.id;
-        token.name = user.name;
+        token.id    = user.id;
+        token.name  = user.name;
         token.email = user.email;
+        // image comes from Google provider or from DB for credentials
+        token.image = (user as any).image ?? token.image ?? "";
       }
       return token;
     },
 
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id;
-        session.user.name = token.name as string;
-        session.user.email = token.email as string;
+        (session.user as any).id    = token.id;
+        session.user.name           = token.name as string;
+        session.user.email          = token.email as string;
+        (session.user as any).image = (token.image as string) ?? "";
       }
       return session;
     },

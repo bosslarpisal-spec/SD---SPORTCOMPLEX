@@ -13,34 +13,50 @@
 @layer components {
   /* Shared page background */
   .page-bg {
-    @apply min-h-screen w-full flex flex-col items-center justify-center px-5 py-8 bg-page-grad;
+    @apply min-h-screen w-full flex flex-col items-center justify-center px-5 py-8;
+    background-image: url('/bg-artwork.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    position: relative;
+  }
+  .page-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.70);
+    z-index: 0;
+  }
+  .page-bg > * {
+    position: relative;
+    z-index: 1;
   }
 
   /* Card */
   .auth-card {
-    @apply w-full max-w-[420px] bg-white rounded-[22px] shadow-card px-10 py-10;
+    @apply w-full max-w-[420px] bg-[#111] rounded-[22px] shadow-card px-10 py-10 border border-white/[0.07];
   }
 
   /* Input base */
   .auth-input {
-    @apply w-full px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl
-           text-sm text-neutral-900 placeholder-neutral-400
+    @apply w-full px-3.5 py-3 bg-[#1c1c1c] border border-white/10 rounded-xl
+           text-sm text-white placeholder-white/30
            outline-none transition-all duration-150
-           focus:border-[#3b6ef6] focus:bg-white;
+           focus:border-[#FF7B00] focus:bg-[#222];
   }
 
   /* Primary button */
   .btn-primary {
-    @apply w-full py-3.5 bg-[#3b6ef6] hover:bg-[#2a5ce0] active:scale-[0.985]
+    @apply w-full py-3.5 bg-[#FF7B00] hover:bg-[#e06f00] active:scale-[0.985]
            text-white text-sm font-bold rounded-xl shadow-btn
            transition-all duration-150 cursor-pointer border-none;
   }
 
   /* Google button */
   .btn-google {
-    @apply w-full py-3.5 bg-[#3b6ef6] hover:bg-[#2a5ce0] active:scale-[0.985]
-           text-white text-sm font-bold rounded-xl shadow-btn
-           transition-all duration-150 cursor-pointer border-none
+    @apply w-full py-3.5 bg-white/[0.06] hover:bg-white/[0.1] active:scale-[0.985] border border-white/10
+           text-white text-sm font-bold rounded-xl
+           transition-all duration-150 cursor-pointer
            flex items-center justify-center gap-2.5;
   }
 }

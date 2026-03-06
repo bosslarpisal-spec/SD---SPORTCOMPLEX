@@ -3,15 +3,11 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    name: String,
-    email: {
-      type: String,
-      unique: true,
-    },
-    password: String,
-    // Ensure these are here
-    resetToken: String,
-    resetTokenExpiry: Date,
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String }, // hashed, null for Google OAuth users
+    provider: { type: String, default: "credentials" }, // "credentials" | "google"
+    image:    { type: String, default: "" }, // profile image URL
   },
   { timestamps: true }
 );

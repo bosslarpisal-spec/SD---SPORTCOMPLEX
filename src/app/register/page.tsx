@@ -58,20 +58,20 @@ export default function RegisterPage() {
       <div className="auth-card">
         <Link
           href="/login"
-          className="inline-flex items-center gap-1.5 text-[0.82rem] font-semibold text-neutral-500 hover:text-[#3b6ef6] transition-colors mb-5"
+          className="inline-flex items-center gap-1.5 text-[0.82rem] font-semibold text-white/50 hover:text-[#FF7B00] transition-colors mb-5"
         >
           ← Back to Sign In
         </Link>
 
         <div className="mb-7">
-          <h2 className="text-[1.55rem] font-extrabold text-neutral-900 tracking-tight leading-snug mb-1">
+          <h2 className="text-[1.55rem] font-extrabold text-white tracking-tight leading-snug mb-1">
             Create account
           </h2>
-          <p className="text-sm text-neutral-400">Join the reservation system</p>
+          <p className="text-sm text-white/40">Join the reservation system</p>
         </div>
 
         {error && (
-          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium">
+          <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 font-medium">
             {error}
           </div>
         )}
@@ -79,7 +79,7 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit}>
           {/* Full Name */}
           <div className="mb-4">
-            <label className="block text-[0.82rem] font-semibold text-neutral-800 mb-1.5">Full Name</label>
+            <label className="block text-[0.82rem] font-semibold text-white/80 mb-1.5">Full Name</label>
             <input
               className="auth-input"
               type="text"
@@ -92,7 +92,7 @@ export default function RegisterPage() {
 
           {/* Email */}
           <div className="mb-4">
-            <label className="block text-[0.82rem] font-semibold text-neutral-800 mb-1.5">Email Address</label>
+            <label className="block text-[0.82rem] font-semibold text-white/80 mb-1.5">Email Address</label>
             <input
               className="auth-input"
               type="email"
@@ -105,9 +105,9 @@ export default function RegisterPage() {
 
           {/* Password */}
           <div className="mb-4">
-            <label className="block text-[0.82rem] font-semibold text-neutral-800 mb-1.5">Password</label>
+            <label className="block text-[0.82rem] font-semibold text-white/80 mb-1.5">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 pointer-events-none" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4 pointer-events-none" />
               <input
                 className="auth-input pl-10 pr-10"
                 type={showPassword ? "text" : "password"}
@@ -117,7 +117,7 @@ export default function RegisterPage() {
                 required
               />
               <button type="button" onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60">
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -126,9 +126,9 @@ export default function RegisterPage() {
 
           {/* Confirm Password */}
           <div className="mb-6">
-            <label className="block text-[0.82rem] font-semibold text-neutral-800 mb-1.5">Confirm Password</label>
+            <label className="block text-[0.82rem] font-semibold text-white/80 mb-1.5">Confirm Password</label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 w-4 h-4 pointer-events-none" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4 pointer-events-none" />
               <input
                 className={`auth-input pl-10 pr-10 ${mismatch ? "border-red-400" : ""}`}
                 type={showConfirm ? "text" : "password"}
@@ -138,7 +138,7 @@ export default function RegisterPage() {
                 required
               />
               <button type="button" onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60">
                 {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -157,9 +157,9 @@ export default function RegisterPage() {
         </form>
 
         <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px bg-neutral-200" />
-          <span className="text-xs font-medium text-neutral-400">or</span>
-          <div className="flex-1 h-px bg-neutral-200" />
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-xs font-medium text-white/40">or</span>
+          <div className="flex-1 h-px bg-white/10" />
         </div>
 
         <button
@@ -172,9 +172,9 @@ export default function RegisterPage() {
           Sign Up with Google
         </button>
 
-        <p className="text-center mt-5 text-sm text-neutral-400">
+        <p className="text-center mt-5 text-sm text-white/40">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-[#3b6ef6] hover:underline">Sign In</Link>
+          <Link href="/login" className="font-semibold text-[#FF7B00] hover:underline">Sign In</Link>
         </p>
       </div>
     </AuthLayout>
