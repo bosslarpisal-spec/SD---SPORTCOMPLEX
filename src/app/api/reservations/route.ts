@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   const duration = endH - startH;
 
   const isSports = body.facilityType === "sports";
-  const countdownDeadline = isSports ? new Date(Date.now() + 60 * 60 * 1000) : undefined;
+  const countdownDeadline = isSports ? new Date(Date.now() + 60 * 60 * 1000) : undefined; // TEST: 1 min (change back to 60 * 60 * 1000 for production)
 
   const reservation = await Reservation.create({
     userId:            (session.user as { id?: string }).id ?? session.user.email,

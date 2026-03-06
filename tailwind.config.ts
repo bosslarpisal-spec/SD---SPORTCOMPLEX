@@ -12,16 +12,16 @@ const config: Config = {
         sans: ["var(--font-jakarta)", "sans-serif"],
       },
       colors: {
-        blue: {
-          brand: "#3b6ef6",
-          hover: "#2a5ce0",
-          light: "#eef2ff",
+        brand: {
+          DEFAULT: "#FF7B00",
+          hover:   "#e06f00",
         },
       },
       boxShadow: {
-        card: "0 24px 64px rgba(0,0,0,0.45)",
-        btn:  "0 4px 18px rgba(59,110,246,0.35)",
-        "btn-lg": "0 8px 28px rgba(59,110,246,0.4)",
+        card:        "0 24px 64px rgba(0,0,0,0.7)",
+        btn:         "0 4px 18px rgba(255,123,0,0.4)",
+        "btn-lg":    "0 8px 28px rgba(255,123,0,0.45)",
+        "card-dark": "0 2px 24px rgba(0,0,0,0.5)",
       },
       borderRadius: {
         card: "22px",

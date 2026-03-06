@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import PageBackground from "@/components/PageBackground";
+import { Trophy, Users, UtensilsCrossed, Dumbbell, Award, type LucideIcon } from "lucide-react";
 
 type Status = "upcoming" | "completed" | "cancelled";
 
@@ -29,19 +31,19 @@ interface Reservation {
 }
 
 const STATUS_STYLES: Record<Status, string> = {
-  upcoming:  "bg-blue-50 text-[#3b6ef6]",
-  completed: "bg-green-50 text-green-600",
-  cancelled: "bg-red-50 text-red-500",
+  upcoming:  "bg-[#FF7B00]/10 text-[#FF7B00]",
+  completed: "bg-green-500/10 text-green-400",
+  cancelled: "bg-red-500/10 text-red-400",
 };
 
 const INVITEE_STYLES: Record<Invitee["status"], string> = {
-  accepted: "bg-green-50 text-green-600",
-  declined: "bg-red-50 text-red-500",
-  pending:  "bg-neutral-100 text-neutral-500",
+  accepted: "bg-green-500/10 text-green-400",
+  declined: "bg-red-500/10 text-red-400",
+  pending:  "bg-white/10 text-white/50",
 };
 
-const FACILITY_EMOJI: Record<string, string> = {
-  sports: "⚽", coworking: "🚪", canteen: "🍽️", info: "🏋️", membership: "🎫",
+const FACILITY_ICONS: Record<string, LucideIcon> = {
+  sports: Trophy, coworking: Users, canteen: UtensilsCrossed, info: Dumbbell, membership: Award,
 };
 
 const TABS = ["All", "upcoming", "completed", "cancelled"] as const;
@@ -64,7 +66,7 @@ function Countdown({ deadline }: { deadline: string }) {
 
   const isExpired = remaining === "Expired";
   return (
-    <span className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full ${isExpired ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-600"}`}>
+    <span className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full ${isExpired ? "bg-red-500/10 text-red-400" : "bg-[#FF7B00]/10 text-[#FF7B00]"}`}>
       {isExpired ? "Countdown expired" : `⏱ ${remaining} left`}
     </span>
   );
@@ -82,7 +84,19 @@ export default function MyReservationPage() {
     setFetching(true);
     try {
       const res = await fetch("/api/reservations");
-      if (res.ok) setList(await res.json());
+      if (res.ok) {
+        const data: Reservation[] = await res.json();
+        setList(data);
+        // Schedule client-side removal for any recently cancelled items
+        const now = Date.now();
+        data.filter(r => r.status === "cancelled" && r.cancelledAt).forEach(r => {
+          const elapsed = now - new Date(r.cancelledAt!).getTime();
+          const remaining = 15 * 60 * 1000 - elapsed;
+          if (remaining > 0) {
+            setTimeout(() => setList(prev => prev.filter(x => x._id !== r._id)), remaining);
+          }
+        });
+      }
     } finally {
       setFetching(false);
     }
@@ -119,22 +133,22 @@ export default function MyReservationPage() {
   const isConfirmed    = (r: Reservation) => confirmedCount(r) >= Math.ceil((r.minPlayers ?? 2) / 2);
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4] font-sans">
+    <PageBackground>
       <Navbar />
 
       {/* Cancel confirm modal */}
       {cancel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
+          <div className="bg-[#141414] border border-white/[0.07] rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
             <div className="text-4xl mb-4">⚠️</div>
-            <h3 className="text-lg font-extrabold text-neutral-900 mb-2">Cancel Reservation?</h3>
-            <p className="text-sm text-neutral-500 mb-6">
+            <h3 className="text-lg font-extrabold text-white mb-2">Cancel Reservation?</h3>
+            <p className="text-sm text-white/50 mb-6">
               This cannot be undone. Your slot will be released.<br />
-              <span className="text-xs text-neutral-400">The reservation will be removed from this page in 15 minutes.</span>
+              <span className="text-xs text-white/30">The reservation will be removed from this page in 15 minutes.</span>
             </p>
             <div className="flex gap-3">
               <button onClick={() => setCancel(null)} disabled={cancelling}
-                className="flex-1 py-3 text-sm font-semibold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-xl transition-colors">
+                className="flex-1 py-3 text-sm font-semibold text-white/70 bg-white/[0.06] hover:bg-white/[0.1] rounded-xl transition-colors">
                 Keep it
               </button>
               <button onClick={() => doCancel(cancel)} disabled={cancelling}
@@ -147,18 +161,18 @@ export default function MyReservationPage() {
       )}
 
       <div className="pt-16">
-        <div className="bg-white border-b border-neutral-200">
+        <div className="bg-[#111] border-b border-white/[0.07]">
           <div className="max-w-4xl mx-auto px-6 py-8">
-            <h1 className="text-2xl font-extrabold text-neutral-900 tracking-tight mb-1">My Reservations</h1>
-            <p className="text-sm text-neutral-500">Track and manage all your facility bookings</p>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">My Reservations</h1>
+            <p className="text-sm text-white/40">Track and manage all your facility bookings</p>
 
             <div className="mt-5 flex gap-2 flex-wrap">
               {TABS.map(tab => (
                 <button key={tab} onClick={() => setActive(tab)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all border
                     ${active === tab
-                      ? "bg-[#3b6ef6] text-white border-[#3b6ef6] shadow-md shadow-blue-200"
-                      : "bg-white text-neutral-600 border-neutral-200 hover:border-[#3b6ef6] hover:text-[#3b6ef6]"}`}>
+                      ? "bg-[#FF7B00] text-white border-[#FF7B00] shadow-btn"
+                      : "bg-white/[0.04] text-white/60 border-white/10 hover:border-[#FF7B00]/50 hover:text-[#FF7B00]"}`}>
                   {tab} {tab !== "All" && <span className="ml-1 opacity-70">({counts[tab as Status]})</span>}
                 </button>
               ))}
@@ -168,15 +182,15 @@ export default function MyReservationPage() {
 
         <div className="max-w-4xl mx-auto px-6 py-8">
           {fetching ? (
-            <div className="text-center py-20 text-neutral-400">
+            <div className="text-center py-20 text-white/40">
               <p className="font-semibold">Loading reservations…</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-20">
               <div className="text-5xl mb-4">📋</div>
-              <p className="font-semibold text-neutral-500 mb-2">No reservations found</p>
+              <p className="font-semibold text-white/50 mb-2">No reservations found</p>
               <Link href="/facility"
-                className="inline-block mt-2 px-5 py-2.5 bg-[#3b6ef6] text-white text-sm font-bold rounded-xl hover:bg-[#2a5ce0] transition-colors">
+                className="inline-block mt-2 px-5 py-2.5 bg-[#FF7B00] text-white text-sm font-bold rounded-xl hover:bg-[#e06f00] transition-colors shadow-btn">
                 Browse Facilities
               </Link>
             </div>
@@ -184,28 +198,28 @@ export default function MyReservationPage() {
             <div className="flex flex-col gap-4">
               {filtered.map(r => {
                 const isSports = r.facilityType === "sports";
-                const emoji    = FACILITY_EMOJI[r.facilityType] ?? "📋";
+                const FacilityIcon = FACILITY_ICONS[r.facilityType] ?? Trophy;
                 const accepted = confirmedCount(r);
                 const confirmed = isConfirmed(r);
 
                 return (
                   <div key={r._id}
-                    className="bg-white rounded-2xl p-5 border border-neutral-100 hover:shadow-md transition-all duration-200">
+                    className="bg-[#111] rounded-2xl p-5 border border-white/[0.07] hover:border-[#FF7B00]/30 hover:shadow-[0_0_24px_rgba(255,123,0,0.07)] transition-all duration-200">
                     {/* Top row */}
                     <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center text-2xl shrink-0">
-                        {emoji}
+                      <div className="w-12 h-12 rounded-xl bg-[#FF7B00]/10 border border-[#FF7B00]/20 flex items-center justify-center shrink-0">
+                        <FacilityIcon className="w-6 h-6 text-[#FF7B00]" />
                       </div>
 
                       <div className="flex-1 min-w-0">
                         {/* Name + status */}
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h3 className="font-extrabold text-neutral-900 text-sm">{r.facilityName}</h3>
+                          <h3 className="font-extrabold text-white text-sm">{r.facilityName}</h3>
                           <span className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[r.status]}`}>
                             {r.status}
                           </span>
                           {/* Sports confirmation badge */}
-                          {isSports && r.status === "upcoming" && (
+                          {isSports && r.status === "upcoming" && r.invitees.length > 0 && (
                             <span className={`text-[0.7rem] font-bold px-2 py-0.5 rounded-full ${confirmed ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"}`}>
                               {confirmed ? "✓ Confirmed" : "Pending confirmation"}
                             </span>
@@ -213,10 +227,10 @@ export default function MyReservationPage() {
                         </div>
 
                         {/* Details */}
-                        <p className="text-xs text-neutral-500 mb-0.5">
+                        <p className="text-xs text-white/40 mb-0.5">
                           📍 {r.slot} &nbsp;·&nbsp; {r.facilityName}
                         </p>
-                        <p className="text-xs text-neutral-500 mb-0.5">
+                        <p className="text-xs text-white/40 mb-0.5">
                           📅 {r.date} &nbsp;·&nbsp; 🕐 {r.startTime} – {r.endTime} &nbsp;·&nbsp; ⏱ {r.duration}h
                         </p>
 
@@ -225,7 +239,7 @@ export default function MyReservationPage() {
                           <div className="mt-1.5">
                             <Countdown deadline={r.countdownDeadline} />
                             {r.minPlayers && (
-                              <span className="ml-2 text-[0.7rem] text-neutral-400">
+                              <span className="ml-2 text-[0.7rem] text-white/40">
                                 {accepted} / {Math.ceil(r.minPlayers / 2)} needed
                               </span>
                             )}
@@ -235,10 +249,10 @@ export default function MyReservationPage() {
 
                       {/* Actions */}
                       <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className="text-[0.68rem] font-mono text-neutral-400">{r._id.slice(-8).toUpperCase()}</span>
+                        <span className="text-[0.68rem] font-mono text-white/30">{r._id.slice(-8).toUpperCase()}</span>
                         {r.status === "upcoming" && (
                           <button onClick={() => setCancel(r._id)}
-                            className="px-3 py-1.5 text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                            className="px-3 py-1.5 text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors">
                             Cancel
                           </button>
                         )}
@@ -247,12 +261,12 @@ export default function MyReservationPage() {
 
                     {/* Invitees (sports only) */}
                     {isSports && r.invitees.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-neutral-100">
-                        <p className="text-[0.72rem] font-bold text-neutral-500 uppercase tracking-wide mb-2">Invitees</p>
+                      <div className="mt-4 pt-4 border-t border-white/[0.07]">
+                        <p className="text-[0.72rem] font-bold text-white/40 uppercase tracking-wide mb-2">Invitees</p>
                         <div className="flex flex-wrap gap-2">
                           {r.invitees.map((inv, i) => (
-                            <div key={i} className="flex items-center gap-1.5 bg-neutral-50 rounded-lg px-3 py-1.5">
-                              <span className="text-xs text-neutral-700">{inv.email}</span>
+                            <div key={i} className="flex items-center gap-1.5 bg-white/[0.04] rounded-lg px-3 py-1.5">
+                              <span className="text-xs text-white/70">{inv.email}</span>
                               <span className={`text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full capitalize ${INVITEE_STYLES[inv.status]}`}>
                                 {inv.status}
                               </span>
@@ -270,13 +284,13 @@ export default function MyReservationPage() {
           {filtered.length > 0 && (
             <div className="mt-8 text-center">
               <Link href="/facility"
-                className="inline-block px-6 py-3 bg-[#3b6ef6] text-white text-sm font-bold rounded-xl hover:bg-[#2a5ce0] transition-colors shadow-md shadow-blue-200">
+                className="inline-block px-6 py-3 bg-[#FF7B00] text-white text-sm font-bold rounded-xl hover:bg-[#e06f00] transition-colors shadow-btn">
                 + Book Another Facility
               </Link>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </PageBackground>
   );
 }

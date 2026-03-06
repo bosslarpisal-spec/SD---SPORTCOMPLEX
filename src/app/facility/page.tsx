@@ -4,6 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import {
+  Trophy, Dumbbell, Users, UtensilsCrossed, Award, Waves,
+  type LucideIcon,
+} from "lucide-react";
+import PageBackground from "@/components/PageBackground";
 
 type FacilityType = "sports" | "coworking" | "canteen" | "info" | "membership";
 
@@ -12,7 +17,7 @@ interface Facility {
   name: string;
   category: string;
   type: FacilityType;
-  emoji: string;
+  Icon: LucideIcon;
   location: string;
   open: string;
   desc: string;
@@ -33,96 +38,113 @@ const FACILITIES: Facility[] = [
   // Sports
   {
     id: 1, name: "Football Field",   category: "Sports", type: "sports",
-    emoji: "⚽", location: "Zone A", open: "06:00 – 22:00",
+    Icon: Trophy, location: "Zone A", open: "06:00 – 22:00",
     desc: "Full-size outdoor football pitch with floodlights.",
     minPlayers: 6, slotNames: ["Field 1", "Field 2"],
   },
   {
     id: 2, name: "Volleyball Court", category: "Sports", type: "sports",
-    emoji: "🏐", location: "Zone A", open: "06:00 – 22:00",
+    Icon: Trophy, location: "Zone A", open: "06:00 – 22:00",
     desc: "Indoor volleyball court with professional net and flooring.",
     minPlayers: 6, slotNames: ["Court 1", "Court 2"],
   },
   {
     id: 3, name: "Badminton Court",  category: "Sports", type: "sports",
-    emoji: "🏸", location: "Sport Complex, 2F", open: "06:00 – 22:00",
+    Icon: Dumbbell, location: "Sport Complex, 2F", open: "06:00 – 22:00",
     desc: "Professional-grade badminton courts with proper lighting.",
     minPlayers: 4, slotNames: BADMINTON_SLOTS,
   },
   {
     id: 4, name: "Table Tennis",     category: "Sports", type: "sports",
-    emoji: "🏓", location: "Sport Complex, 1F", open: "06:00 – 22:00",
+    Icon: Dumbbell, location: "Sport Complex, 1F", open: "06:00 – 22:00",
     desc: "Table tennis tables available for singles or doubles play.",
     minPlayers: 2, slotNames: TABLE_SLOTS,
   },
   // Co-working
   {
     id: 5, name: "Private Room A",   category: "Co-working", type: "coworking",
-    emoji: "🚪", location: "Library, 3rd Floor", open: "06:00 – 22:00",
+    Icon: Users, location: "Library, 3rd Floor", open: "06:00 – 22:00",
     desc: "Enclosed private room for focused group work. Fits up to 6 people.",
     slotNames: ["A101", "A102"], requiresKMITL: true,
   },
   {
     id: 6, name: "Private Room B",   category: "Co-working", type: "coworking",
-    emoji: "🚪", location: "Library, 3rd Floor", open: "06:00 – 22:00",
+    Icon: Users, location: "Library, 3rd Floor", open: "06:00 – 22:00",
     desc: "Enclosed private room ideal for presentations. Fits up to 8 people.",
     slotNames: ["B101", "B102"], requiresKMITL: true,
   },
   // Canteen
   {
     id: 7, name: "Engineering Canteen", category: "Canteen", type: "canteen",
-    emoji: "🍽️", location: "Engineering Building", open: "06:00 – 22:00",
+    Icon: UtensilsCrossed, location: "Engineering Building", open: "06:00 – 22:00",
     desc: "Reserve a table at the Engineering Canteen. One table per account at a time.",
     slotNames: CANTEEN_SLOTS, requiresKMITL: true,
   },
   {
     id: 8, name: "Central Canteen",     category: "Canteen", type: "canteen",
-    emoji: "🍜", location: "Central Building", open: "06:00 – 22:00",
+    Icon: UtensilsCrossed, location: "Central Building", open: "06:00 – 22:00",
     desc: "Reserve a table at the Central Canteen. One table per account at a time.",
     slotNames: CANTEEN_SLOTS, requiresKMITL: true,
   },
   // Gym & Pool (info only)
   {
     id: 9,  name: "Fitness Center",  category: "Gym & Pool", type: "info",
-    emoji: "🏋️", location: "Sport Complex, G Floor", open: "05:00 – 22:00",
+    Icon: Dumbbell, location: "Sport Complex, G Floor", open: "05:00 – 22:00",
     desc: "Fully equipped gym with free weights, cardio machines, and personal trainers.",
     fee: "50 THB / session", studentFee: "Free with student membership",
   },
   {
     id: 10, name: "Swimming Pool",   category: "Gym & Pool", type: "info",
-    emoji: "🏊", location: "Aquatic Center", open: "06:00 – 22:00",
+    Icon: Waves, location: "Aquatic Center", open: "06:00 – 22:00",
     desc: "50m competition-grade pool. Open to all students and staff.",
     fee: "40 THB / session", studentFee: "20 THB / session (student member)",
   },
   // Membership
   {
     id: 11, name: "Student Membership", category: "Membership", type: "membership",
-    emoji: "🎓", location: "Admin Office", open: "09:00 – 16:00",
+    Icon: Award, location: "Admin Office", open: "09:00 – 16:00",
     desc: "Automatic for registered students using @kmitl.ac.th email. Enjoy discounted facility fees and priority booking.",
     fee: "Free",
   },
   {
     id: 12, name: "Semester Pass",   category: "Membership", type: "membership",
-    emoji: "🎫", location: "Admin Office", open: "09:00 – 16:00",
+    Icon: Award, location: "Admin Office", open: "09:00 – 16:00",
     desc: "Unlimited gym and pool access for one full semester. Includes priority booking for all sports courts.",
     fee: "990 THB / semester", studentFee: "590 THB / semester (student member)",
   },
 ];
 
 // ── Time slot helpers ─────────────────────────────────────
-// 06:00 to 22:00
 const ALL_SLOTS = Array.from({ length: 17 }, (_, i) => {
   const h = i + 6;
   return `${String(h).padStart(2, "0")}:00`;
 });
 
+function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function minBookingDate(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return toLocalDateStr(tomorrow);
+}
+
+function maxBookingDate(): string {
+  const max = new Date();
+  max.setDate(max.getDate() + 7);
+  return toLocalDateStr(max);
+}
+
 function getStartSlots(date: string): string[] {
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
+  const todayStr = toLocalDateStr(now);
   const currentH = now.getHours();
+  // Before 06:00: facility not yet open for today
+  if (date === todayStr && currentH < 6) return [];
   return ALL_SLOTS.filter(s => {
     const h = parseInt(s, 10);
-    if (h >= 22) return false; // last valid start is 21 (end = 22)
+    if (h >= 22) return false;
     if (date === todayStr) return h > currentH;
     return true;
   });
@@ -150,46 +172,62 @@ function isTimeConflict(
   });
 }
 
+function isSlotAvailable(
+  slotName: string,
+  availability: Record<string, { startTime: string; endTime: string }[]>,
+  date: string
+): boolean {
+  const now = new Date();
+  const todayStr = toLocalDateStr(now);
+  // Before opening time: facility hasn't opened yet, all slots are fully available
+  if (date === todayStr && now.getHours() < 6) return true;
+  const bookings = availability[slotName] ?? [];
+  const starts = getStartSlots(date);
+  return starts.some(s => getEndSlots(s).some(e => !isTimeConflict(s, e, bookings)));
+}
+
 // ── Info Modal (Gym & Pool) ───────────────────────────────
 function InfoModal({ facility, onClose }: { facility: Facility; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+      <div className="bg-[#141414] border border-white/[0.07] rounded-3xl p-8 max-w-md w-full shadow-card">
         <div className="flex items-start justify-between mb-6">
           <div>
-            <div className="text-3xl mb-2">{facility.emoji}</div>
-            <h3 className="text-lg font-extrabold text-neutral-900">{facility.name}</h3>
-            <p className="text-sm text-neutral-400">{facility.location}</p>
+            <div className="w-12 h-12 rounded-xl bg-[#FF7B00]/10 flex items-center justify-center mb-3">
+              <facility.Icon className="w-6 h-6 text-[#FF7B00]" />
+            </div>
+            <h3 className="text-lg font-extrabold text-white">{facility.name}</h3>
+            <p className="text-sm text-white/40">{facility.location}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-xl text-neutral-400 hover:text-neutral-700">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <p className="text-sm text-neutral-600 leading-relaxed mb-5">{facility.desc}</p>
-        <div className="bg-neutral-50 rounded-2xl p-4 space-y-3 mb-5">
+        <p className="text-sm text-white/60 leading-relaxed mb-5">{facility.desc}</p>
+        <div className="bg-white/[0.04] rounded-2xl p-4 space-y-3 mb-5">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-neutral-700">🕐 Hours</span>
-            <span className="text-neutral-600">{facility.open}</span>
+            <span className="font-semibold text-white/70">Hours</span>
+            <span className="text-white/60">{facility.open}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-neutral-700">💰 Walk-in Fee</span>
-            <span className="text-neutral-600">{facility.fee}</span>
+            <span className="font-semibold text-white/70">Walk-in Fee</span>
+            <span className="text-white/60">{facility.fee}</span>
           </div>
           {facility.studentFee && (
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-[#3b6ef6]">🎓 Student Rate</span>
-              <span className="text-[#3b6ef6] font-semibold">{facility.studentFee}</span>
+              <span className="font-semibold text-[#FF7B00]">Student Rate</span>
+              <span className="text-[#FF7B00] font-semibold">{facility.studentFee}</span>
             </div>
           )}
         </div>
-        <div className="bg-blue-50 rounded-xl px-4 py-3 mb-5">
-          <p className="text-xs font-medium text-[#3b6ef6]">
+        <div className="bg-[#FF7B00]/10 border border-[#FF7B00]/20 rounded-xl px-4 py-3 mb-5">
+          <p className="text-xs font-medium text-[#FF7B00]">
             No reservation required — just show up during opening hours. Student members enjoy reduced rates automatically.
           </p>
         </div>
-        <button onClick={onClose} className="w-full py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] rounded-xl transition-colors">
+        <button onClick={onClose} className="w-full py-3 text-sm font-bold text-white bg-[#FF7B00] hover:bg-[#e06f00] rounded-xl transition-colors shadow-btn">
           Got it
         </button>
       </div>
@@ -201,41 +239,43 @@ function InfoModal({ facility, onClose }: { facility: Facility; onClose: () => v
 function MembershipModal({ facility, onClose }: { facility: Facility; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+      <div className="bg-[#141414] border border-white/[0.07] rounded-3xl p-8 max-w-md w-full shadow-card">
         <div className="flex items-start justify-between mb-6">
           <div>
-            <div className="text-3xl mb-2">{facility.emoji}</div>
-            <h3 className="text-lg font-extrabold text-neutral-900">{facility.name}</h3>
+            <div className="w-12 h-12 rounded-xl bg-[#FF7B00]/10 flex items-center justify-center mb-3">
+              <facility.Icon className="w-6 h-6 text-[#FF7B00]" />
+            </div>
+            <h3 className="text-lg font-extrabold text-white">{facility.name}</h3>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-xl text-neutral-400 hover:text-neutral-700">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <p className="text-sm text-neutral-600 leading-relaxed mb-5">{facility.desc}</p>
-        <div className="bg-neutral-50 rounded-2xl p-4 space-y-3 mb-5">
+        <p className="text-sm text-white/60 leading-relaxed mb-5">{facility.desc}</p>
+        <div className="bg-white/[0.04] rounded-2xl p-4 space-y-3 mb-5">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-neutral-700">💰 Regular Price</span>
-            <span className="text-neutral-600">{facility.fee}</span>
+            <span className="font-semibold text-white/70">Regular Price</span>
+            <span className="text-white/60">{facility.fee}</span>
           </div>
           {facility.studentFee && (
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-[#3b6ef6]">🎓 Student Price</span>
-              <span className="text-[#3b6ef6] font-semibold">{facility.studentFee}</span>
+              <span className="font-semibold text-[#FF7B00]">Student Price</span>
+              <span className="text-[#FF7B00] font-semibold">{facility.studentFee}</span>
             </div>
           )}
         </div>
-        <div className="bg-purple-50 rounded-xl px-4 py-3 mb-5">
-          <p className="text-xs font-semibold text-purple-700 mb-1">Student Member Privileges</p>
-          <ul className="text-xs text-purple-600 space-y-1">
+        <div className="bg-[#FF7B00]/10 border border-[#FF7B00]/20 rounded-xl px-4 py-3 mb-5">
+          <p className="text-xs font-semibold text-[#FF7B00] mb-1">Student Member Privileges</p>
+          <ul className="text-xs text-white/50 space-y-1">
             <li>✓ Automatic for @kmitl.ac.th email accounts</li>
             <li>✓ Discounted fees on sports & gym facilities</li>
             <li>✓ Priority booking up to 7 days in advance</li>
             <li>✓ Free access to co-working rooms</li>
           </ul>
         </div>
-        <button onClick={onClose} className="w-full py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] rounded-xl transition-colors">
+        <button onClick={onClose} className="w-full py-3 text-sm font-bold text-white bg-[#FF7B00] hover:bg-[#e06f00] rounded-xl transition-colors shadow-btn">
           Close
         </button>
       </div>
@@ -249,48 +289,59 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
   const userEmail = session?.user?.email ?? "";
   const isKMITL   = userEmail.endsWith("@kmitl.ac.th");
 
-  const [slot,        setSlot]        = useState("");
-  const [date,        setDate]        = useState("");
-  const [startTime,   setStartTime]   = useState("");
-  const [endTime,     setEndTime]     = useState("");
-  const [participants, setParticipants] = useState(facility.minPlayers ?? 1);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [invitees,    setInvitees]    = useState<string[]>([]);
-  const [note,        setNote]        = useState("");
-  const [bookedRanges, setBookedRanges] = useState<{ startTime: string; endTime: string }[]>([]);
-  const [loading,     setLoading]     = useState(false);
-  const [done,        setDone]        = useState(false);
-  const [error,       setError]       = useState("");
+  const [slot,           setSlot]           = useState("");
+  const [date,           setDate]           = useState("");
+  const [startTime,      setStartTime]      = useState("");
+  const [endTime,        setEndTime]        = useState("");
+  const [inviteEmail,    setInviteEmail]    = useState("");
+  const [invitees,       setInvitees]       = useState<string[]>([]);
+  const [note,           setNote]           = useState("");
+  const [bookedRanges,   setBookedRanges]   = useState<{ startTime: string; endTime: string }[]>([]);
+  const [slotAvailability, setSlotAvailability] = useState<Record<string, { startTime: string; endTime: string }[]>>({});
+  const [loading,        setLoading]        = useState(false);
+  const [done,           setDone]           = useState(false);
+  const [error,          setError]          = useState("");
 
-  const isSports   = facility.type === "sports";
-  const isCanteen  = facility.type === "canteen";
-  const minP       = facility.minPlayers ?? 1;
-  const slotNames  = facility.slotNames ?? [];
+  const isSports  = facility.type === "sports";
+  const isCanteen = facility.type === "canteen";
+  const minP      = facility.minPlayers ?? 1;
+  const slotNames = facility.slotNames ?? [];
 
   const startSlots = getStartSlots(date);
   const endSlots   = getEndSlots(startTime);
 
   const kmitlBlocked = facility.requiresKMITL && !isKMITL;
   const canBook = !kmitlBlocked && !!slot && !!date && !!startTime && !!endTime &&
-    (isSports ? participants >= minP : true);
+    (isSports ? invitees.length + 1 >= minP : true);
 
-  // Fetch booked ranges when facility/date/slot change
+  // Fetch facility-level availability when date changes (for slot filtering)
+  const fetchFacilityAvailability = useCallback(async () => {
+    if (!date) { setSlotAvailability({}); return; }
+    const res = await fetch(`/api/reservations/facility-availability?facilityId=${facility.id}&date=${date}`);
+    if (res.ok) setSlotAvailability(await res.json());
+  }, [facility.id, date]);
+
+  // Fetch per-slot booked ranges when slot+date change (for time filtering)
   const fetchAvailability = useCallback(async () => {
     if (!date || !slot) { setBookedRanges([]); return; }
     const res = await fetch(`/api/reservations/availability?facilityId=${facility.id}&date=${date}&slot=${encodeURIComponent(slot)}`);
     if (res.ok) setBookedRanges(await res.json());
   }, [facility.id, date, slot]);
 
+  useEffect(() => { fetchFacilityAvailability(); }, [fetchFacilityAvailability]);
   useEffect(() => { fetchAvailability(); }, [fetchAvailability]);
+
+  // Available slots for this date (filter out fully-booked ones)
+  const availableSlots = date
+    ? slotNames.filter(s => isSlotAvailable(s, slotAvailability, date))
+    : slotNames;
 
   const handleStartChange = (val: string) => {
     setStartTime(val);
     setEndTime("");
   };
 
-  // Filter start slots: also grey out slots that conflict
   const validStartSlots = startSlots.filter(s => {
-    // A start time is invalid if every possible end time conflicts
     const possibleEnds = getEndSlots(s);
     if (possibleEnds.length === 0) return false;
     return possibleEnds.some(e => !isTimeConflict(s, e, bookedRanges));
@@ -340,29 +391,29 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
   };
 
   if (done) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-3xl p-10 max-w-sm w-full text-center shadow-2xl">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#3b6ef6] to-[#6b9eff] flex items-center justify-center mx-auto mb-5 text-white text-2xl font-bold shadow-lg">✓</div>
-        <h3 className="text-xl font-extrabold text-neutral-900 mb-2">Booking Confirmed!</h3>
-        <p className="text-sm text-neutral-500 mb-2">
-          <span className="font-semibold text-neutral-800">{facility.name}</span> — {slot}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+      <div className="bg-[#141414] border border-white/[0.07] rounded-3xl p-10 max-w-sm w-full text-center shadow-card">
+        <div className="w-16 h-16 rounded-full bg-[#FF7B00] flex items-center justify-center mx-auto mb-5 text-white text-2xl font-bold shadow-btn">✓</div>
+        <h3 className="text-xl font-extrabold text-white mb-2">Booking Confirmed!</h3>
+        <p className="text-sm text-white/60 mb-2">
+          <span className="font-semibold text-white">{facility.name}</span> — {slot}
         </p>
-        <p className="text-xs text-neutral-400 mb-1">{date} &nbsp;·&nbsp; {startTime} – {endTime}</p>
+        <p className="text-xs text-white/40 mb-1">{date} &nbsp;·&nbsp; {startTime} – {endTime}</p>
         {isSports && invitees.length > 0 && (
-          <p className="text-xs text-neutral-400 mb-4">Invitations sent to {invitees.length} friend{invitees.length > 1 ? "s" : ""}.</p>
+          <p className="text-xs text-white/40 mb-4">Invitations sent to {invitees.length} friend{invitees.length > 1 ? "s" : ""}.</p>
         )}
         {isSports && (
-          <div className="bg-amber-50 rounded-xl px-4 py-3 mb-4">
-            <p className="text-xs font-medium text-amber-700">
+          <div className="bg-[#FF7B00]/10 border border-[#FF7B00]/20 rounded-xl px-4 py-3 mb-4">
+            <p className="text-xs font-medium text-[#FF7B00]">
               Invitees have <strong>1 hour</strong> to respond. If fewer than half accept, this reservation will be auto-cancelled.
             </p>
           </div>
         )}
         <Link href="/my-reservation"
-          className="block w-full py-3 bg-[#3b6ef6] text-white text-sm font-bold rounded-xl hover:bg-[#2a5ce0] transition-colors mb-3">
+          className="block w-full py-3 bg-[#FF7B00] text-white text-sm font-bold rounded-xl hover:bg-[#e06f00] transition-colors shadow-btn mb-3">
           View My Reservations
         </Link>
-        <button onClick={onClose} className="w-full py-3 text-sm font-semibold text-neutral-500 hover:text-neutral-700 transition-colors">
+        <button onClick={onClose} className="w-full py-3 text-sm font-semibold text-white/40 hover:text-white transition-colors">
           Close
         </button>
       </div>
@@ -371,162 +422,165 @@ function BookingModal({ facility, onClose }: { facility: Facility; onClose: () =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#141414] border border-white/[0.07] rounded-3xl p-8 max-w-md w-full shadow-card max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div>
-            <div className="text-3xl mb-2">{facility.emoji}</div>
-            <h3 className="text-lg font-extrabold text-neutral-900">{facility.name}</h3>
-            <p className="text-sm text-neutral-400">{facility.location}</p>
+            <div className="w-12 h-12 rounded-xl bg-[#FF7B00]/10 flex items-center justify-center mb-3">
+              <facility.Icon className="w-6 h-6 text-[#FF7B00]" />
+            </div>
+            <h3 className="text-lg font-extrabold text-white">{facility.name}</h3>
+            <p className="text-sm text-white/40">{facility.location}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-xl text-neutral-400 hover:text-neutral-700">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* KMITL email restriction warning */}
         {kmitlBlocked && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5">
-            <p className="text-xs font-semibold text-red-600">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-5">
+            <p className="text-xs font-semibold text-red-400">
               This facility is only available to @kmitl.ac.th accounts. Please sign in with your student email.
             </p>
           </div>
         )}
 
-        {/* Sports min-player notice */}
         {isSports && (
-          <div className="bg-blue-50 rounded-xl px-4 py-3 mb-5">
-            <p className="text-xs font-semibold text-[#3b6ef6]">
+          <div className="bg-[#FF7B00]/10 border border-[#FF7B00]/20 rounded-xl px-4 py-3 mb-5">
+            <p className="text-xs font-semibold text-[#FF7B00]">
               Minimum <span className="font-extrabold">{minP} participants</span> required. You are the host — invite friends below.
               Reservation confirms when ≥ {Math.ceil(minP / 2)} invitees accept within 1 hour.
             </p>
           </div>
         )}
 
-        {/* Canteen one-table notice */}
         {isCanteen && (
-          <div className="bg-orange-50 rounded-xl px-4 py-3 mb-5">
-            <p className="text-xs font-semibold text-orange-600">
+          <div className="bg-[#FF7B00]/10 border border-[#FF7B00]/20 rounded-xl px-4 py-3 mb-5">
+            <p className="text-xs font-semibold text-[#FF7B00]">
               One table reservation per account at a time.
             </p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
-            <p className="text-xs font-semibold text-red-600">{error}</p>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-4">
+            <p className="text-xs font-semibold text-red-400">{error}</p>
           </div>
         )}
 
         <div className="space-y-4">
-          {/* Slot picker */}
+          {/* Date — must be selected first to show available slots */}
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-              {isCanteen ? "Select Table" : isSports ? "Select Field / Court" : "Select Room"}
-            </label>
-            <select value={slot} onChange={e => { setSlot(e.target.value); setStartTime(""); setEndTime(""); }}
-              className="w-full px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm text-neutral-900 outline-none focus:border-[#3b6ef6] focus:bg-white transition-all">
-              <option value="">-- Select --</option>
-              {slotNames.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <label className="block text-xs font-semibold text-white/70 mb-1.5">Date</label>
+            <input type="date"
+              min={minBookingDate()}
+              max={maxBookingDate()}
+              value={date}
+              onChange={e => { setDate(e.target.value); setSlot(""); setStartTime(""); setEndTime(""); }}
+              className="w-full px-3.5 py-3 bg-[#1c1c1c] border border-white/10 rounded-xl text-sm text-white outline-none focus:border-[#FF7B00] transition-all" />
           </div>
 
-          {/* Date */}
+          {/* Slot picker — filtered by date availability */}
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Date</label>
-            <input type="date"
-              min={new Date().toISOString().split("T")[0]}
-              value={date}
-              onChange={e => { setDate(e.target.value); setStartTime(""); setEndTime(""); }}
-              className="w-full px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm text-neutral-900 outline-none focus:border-[#3b6ef6] focus:bg-white transition-all" />
+            <label className="block text-xs font-semibold text-white/70 mb-1.5">
+              {isCanteen ? "Select Table" : isSports ? "Select Field / Court" : "Select Room"}
+              {date && (
+                <span className="ml-2 font-normal text-white/30">
+                  ({availableSlots.length} / {slotNames.length} available)
+                </span>
+              )}
+            </label>
+            <select value={slot} onChange={e => { setSlot(e.target.value); setStartTime(""); setEndTime(""); }}
+              disabled={!date}
+              className="w-full px-3.5 py-3 bg-[#1c1c1c] border border-white/10 rounded-xl text-sm text-white outline-none focus:border-[#FF7B00] transition-all disabled:opacity-40">
+              <option value="">-- Select --</option>
+              {availableSlots.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            {date && availableSlots.length === 0 && (
+              <p className="text-xs text-red-400 mt-1">No available slots for this date.</p>
+            )}
           </div>
 
           {/* Start Time */}
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Start Time</label>
+            <label className="block text-xs font-semibold text-white/70 mb-1.5">Start Time</label>
             <select value={startTime} onChange={e => handleStartChange(e.target.value)}
-              disabled={!date}
-              className="w-full px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm text-neutral-900 outline-none focus:border-[#3b6ef6] focus:bg-white transition-all disabled:opacity-50">
+              disabled={!slot || validStartSlots.length === 0}
+              className="w-full px-3.5 py-3 bg-[#1c1c1c] border border-white/10 rounded-xl text-sm text-white outline-none focus:border-[#FF7B00] transition-all disabled:opacity-40">
               <option value="">-- Select start time --</option>
               {validStartSlots.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            {slot && date && validStartSlots.length === 0 && (
+              <p className="text-xs text-[#FF7B00] mt-1">Facility opens at 06:00 — start times will appear then.</p>
+            )}
           </div>
 
           {/* End Time */}
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-              End Time <span className="ml-1 text-neutral-400 font-normal">(max 3 hours)</span>
+            <label className="block text-xs font-semibold text-white/70 mb-1.5">
+              End Time <span className="ml-1 text-white/30 font-normal">(max 3 hours)</span>
             </label>
             <select value={endTime} onChange={e => setEndTime(e.target.value)}
               disabled={!startTime}
-              className="w-full px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm text-neutral-900 outline-none focus:border-[#3b6ef6] focus:bg-white transition-all disabled:opacity-50">
+              className="w-full px-3.5 py-3 bg-[#1c1c1c] border border-white/10 rounded-xl text-sm text-white outline-none focus:border-[#FF7B00] transition-all disabled:opacity-40">
               <option value="">-- Select end time --</option>
               {validEndSlots.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
-          {/* Participants (sports only) */}
-          {isSports && (
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                Number of Participants <span className="ml-1 text-neutral-400 font-normal">(min {minP})</span>
-              </label>
-              <input type="number" min={minP} value={participants}
-                onChange={e => setParticipants(Number(e.target.value))}
-                className={`w-full px-3.5 py-3 bg-neutral-100 border rounded-xl text-sm text-neutral-900 outline-none transition-all
-                  ${participants < minP ? "border-red-400 bg-red-50" : "border-transparent focus:border-[#3b6ef6] focus:bg-white"}`} />
-              {participants < minP && (
-                <p className="text-xs text-red-500 mt-1">At least {minP} participants required</p>
-              )}
-            </div>
-          )}
-
           {/* Invite Friends (sports only) */}
           {isSports && (
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Invite Friends (by email)</label>
+              <label className="block text-xs font-semibold text-white/70 mb-1.5">
+                Invite Players <span className="text-white/30 font-normal">(min {minP} total including you)</span>
+              </label>
               <div className="flex gap-2">
                 <input type="email" placeholder="friend@kmitl.ac.th"
                   value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addInvite())}
-                  className="flex-1 px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm outline-none focus:border-[#3b6ef6] focus:bg-white transition-all" />
+                  className="flex-1 px-3.5 py-3 bg-[#1c1c1c] border border-white/10 rounded-xl text-sm text-white placeholder-white/25 outline-none focus:border-[#FF7B00] transition-all" />
                 <button type="button" onClick={addInvite}
-                  className="px-4 py-3 bg-[#3b6ef6] text-white text-xs font-bold rounded-xl hover:bg-[#2a5ce0] transition-colors">
+                  className="px-4 py-3 bg-[#FF7B00] text-white text-xs font-bold rounded-xl hover:bg-[#e06f00] transition-colors shadow-btn">
                   Add
                 </button>
               </div>
               {invitees.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {invitees.map(email => (
-                    <span key={email} className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-[#3b6ef6] text-xs font-semibold rounded-full">
+                    <span key={email} className="flex items-center gap-1 px-2.5 py-1 bg-[#FF7B00]/10 text-[#FF7B00] text-xs font-semibold rounded-full border border-[#FF7B00]/20">
                       {email}
-                      <button onClick={() => setInvitees(prev => prev.filter(e => e !== email))} className="hover:text-red-500 ml-0.5">✕</button>
+                      <button onClick={() => setInvitees(prev => prev.filter(e => e !== email))} className="hover:text-red-400 ml-0.5">✕</button>
                     </span>
                   ))}
                 </div>
+              )}
+              {invitees.length + 1 < minP && (
+                <p className="text-xs text-amber-400 mt-1.5">
+                  {minP - invitees.length - 1} more player{minP - invitees.length - 1 !== 1 ? "s" : ""} needed to book
+                </p>
               )}
             </div>
           )}
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1.5">Notes (optional)</label>
+            <label className="block text-xs font-semibold text-white/70 mb-1.5">Notes (optional)</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Any special requests..."
-              className="w-full px-3.5 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm text-neutral-900 outline-none focus:border-[#3b6ef6] focus:bg-white transition-all resize-none" />
+              className="w-full px-3.5 py-3 bg-[#1c1c1c] border border-white/10 rounded-xl text-sm text-white placeholder-white/25 outline-none focus:border-[#FF7B00] transition-all resize-none" />
           </div>
         </div>
 
         <div className="flex gap-3 mt-6">
           <button onClick={onClose}
-            className="flex-1 py-3 text-sm font-semibold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-xl transition-colors">
+            className="flex-1 py-3 text-sm font-semibold text-white/60 bg-white/[0.06] hover:bg-white/10 rounded-xl transition-colors border border-white/10">
             Cancel
           </button>
           <button
             disabled={!canBook || loading}
             onClick={handleConfirm}
-            className="flex-1 py-3 text-sm font-bold text-white bg-[#3b6ef6] hover:bg-[#2a5ce0] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors shadow-md shadow-blue-200">
+            className="flex-1 py-3 text-sm font-bold text-white bg-[#FF7B00] hover:bg-[#e06f00] disabled:opacity-30 disabled:cursor-not-allowed rounded-xl transition-colors shadow-btn">
             {loading ? "Booking..." : "Confirm Booking"}
           </button>
         </div>
@@ -540,12 +594,12 @@ export default function FacilityPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState<Facility | null>(null);
-
   const filtered = FACILITIES.filter(f => {
     const matchCat = activeCategory === "All" || f.category === activeCategory;
     const matchQ   = f.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchQ;
   });
+
 
   const renderModal = () => {
     if (!selected) return null;
@@ -555,20 +609,20 @@ export default function FacilityPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4] font-sans">
+    <PageBackground>
       <Navbar />
       {renderModal()}
 
       <div className="pt-16">
-        <div className="bg-white border-b border-neutral-200">
+        <div className="bg-black border-b border-white/[0.07]">
           <div className="max-w-5xl mx-auto px-6 py-8">
-            <h1 className="text-2xl font-extrabold text-neutral-900 tracking-tight mb-1">Browse Facilities</h1>
-            <p className="text-sm text-neutral-500">Find and book KMITL facilities instantly</p>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">Browse Facilities</h1>
+            <p className="text-sm text-white/40">Find and book KMITL facilities instantly</p>
 
             <div className="mt-5 relative max-w-md">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">🔍</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none text-sm">🔍</span>
               <input
-                className="w-full pl-10 pr-4 py-3 bg-neutral-100 border border-transparent rounded-xl text-sm outline-none focus:border-[#3b6ef6] focus:bg-white transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-[#111] border border-white/10 rounded-xl text-sm text-white placeholder-white/25 outline-none focus:border-[#FF7B00] transition-all"
                 placeholder="Search facilities..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -580,8 +634,8 @@ export default function FacilityPage() {
                 <button key={c} onClick={() => setActiveCategory(c)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border
                     ${activeCategory === c
-                      ? "bg-[#3b6ef6] text-white border-[#3b6ef6] shadow-md shadow-blue-200"
-                      : "bg-white text-neutral-600 border-neutral-200 hover:border-[#3b6ef6] hover:text-[#3b6ef6]"}`}>
+                      ? "bg-[#FF7B00] text-white border-[#FF7B00] shadow-btn"
+                      : "bg-transparent text-white/50 border-white/10 hover:border-[#FF7B00]/50 hover:text-[#FF7B00]"}`}>
                   {c}
                 </button>
               ))}
@@ -591,72 +645,66 @@ export default function FacilityPage() {
 
         <div className="max-w-5xl mx-auto px-6 py-8">
           {filtered.length === 0 ? (
-            <div className="text-center py-20 text-neutral-400">
+            <div className="text-center py-20 text-white/30">
               <div className="text-4xl mb-3">🔎</div>
               <p className="font-semibold">No facilities found</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filtered.map(f => (
-                <div key={f.id}
-                  className="bg-white rounded-2xl p-6 border border-neutral-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center text-2xl">
-                      {f.emoji}
+              {filtered.map(f => {
+                return (
+                  <div key={f.id}
+                    className="bg-[#111] rounded-2xl p-6 border border-white/[0.07] hover:border-[#FF7B00]/30 hover:shadow-[0_0_30px_rgba(255,123,0,0.08)] hover:-translate-y-1 transition-all duration-200 flex flex-col">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-[#FF7B00]/10 flex items-center justify-center">
+                        <f.Icon className="w-6 h-6 text-[#FF7B00]" />
+                      </div>
                     </div>
-                    {f.slotNames && (
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full
-                        ${f.slotNames.length > 10 ? "bg-green-50 text-green-600"
-                        : f.slotNames.length > 3  ? "bg-yellow-50 text-yellow-600"
-                        :                           "bg-red-50 text-red-500"}`}>
-                        {f.slotNames.length} slots
+
+                    <h3 className="font-extrabold text-white text-sm mb-1">{f.name}</h3>
+                    <p className="text-xs text-white/40 mb-1">📍 {f.location}</p>
+                    <p className="text-xs text-white/40 mb-2">🕐 {f.open}</p>
+
+                    {f.minPlayers && (
+                      <span className="text-xs font-semibold text-[#FF7B00] bg-[#FF7B00]/10 border border-[#FF7B00]/20 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
+                        Min {f.minPlayers} players
                       </span>
                     )}
+                    {f.fee && f.type === "info" && (
+                      <span className="text-xs font-semibold text-white/60 bg-white/[0.06] border border-white/10 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
+                        {f.fee}
+                      </span>
+                    )}
+                    {f.type === "membership" && (
+                      <span className="text-xs font-semibold text-white/60 bg-white/[0.06] border border-white/10 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
+                        {f.fee}
+                      </span>
+                    )}
+                    {f.requiresKMITL && (
+                      <span className="text-xs font-semibold text-[#FF7B00]/70 bg-[#FF7B00]/10 border border-[#FF7B00]/15 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
+                        @kmitl.ac.th only
+                      </span>
+                    )}
+
+                    <p className="text-xs text-white/40 leading-relaxed mb-5 flex-1">{f.desc}</p>
+
+                    <button
+                      onClick={() => setSelected(f)}
+                      className={`w-full py-2.5 text-white text-xs font-bold rounded-xl transition-all active:scale-[0.98]
+                        ${f.type === "info" || f.type === "membership"
+                          ? "bg-white/10 hover:bg-white/15 border border-white/15"
+                          : "bg-[#FF7B00] hover:bg-[#e06f00] shadow-btn"}`}>
+                      {f.type === "info"        ? "View Info & Fees"
+                      : f.type === "membership" ? "View Membership"
+                      :                          "Book Now"}
+                    </button>
                   </div>
-
-                  <h3 className="font-extrabold text-neutral-900 text-sm mb-1">{f.name}</h3>
-                  <p className="text-xs text-neutral-400 mb-1">📍 {f.location}</p>
-                  <p className="text-xs text-neutral-400 mb-2">🕐 {f.open}</p>
-
-                  {f.minPlayers && (
-                    <span className="text-xs font-semibold text-[#3b6ef6] bg-blue-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
-                      Min {f.minPlayers} players
-                    </span>
-                  )}
-                  {f.fee && f.type === "info" && (
-                    <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
-                      {f.fee}
-                    </span>
-                  )}
-                  {f.type === "membership" && (
-                    <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
-                      {f.fee}
-                    </span>
-                  )}
-                  {f.requiresKMITL && (
-                    <span className="text-xs font-semibold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
-                      @kmitl.ac.th only
-                    </span>
-                  )}
-
-                  <p className="text-xs text-neutral-500 leading-relaxed mb-5 flex-1">{f.desc}</p>
-
-                  <button
-                    onClick={() => setSelected(f)}
-                    className={`w-full py-2.5 text-white text-xs font-bold rounded-xl transition-colors shadow-sm active:scale-[0.98]
-                      ${f.type === "info"       ? "bg-orange-500 hover:bg-orange-600 shadow-orange-100"
-                      : f.type === "membership" ? "bg-purple-600 hover:bg-purple-700 shadow-purple-100"
-                      :                          "bg-[#3b6ef6] hover:bg-[#2a5ce0] shadow-blue-100"}`}>
-                    {f.type === "info"       ? "View Info & Fees"
-                    : f.type === "membership" ? "View Membership"
-                    :                          "Book Now"}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
-    </div>
+    </PageBackground>
   );
 }
