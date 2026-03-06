@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { connectDB } from "@/lib/db";
+import connectDB  from "@/lib/mongodb";
 import Reservation from "@/models/Reservation";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
